@@ -19,11 +19,11 @@ This module provides a generic method for one agent to send a message to other a
 # Installation notes
 This package is currently in an alpha state. It is meant to be locally installed for development purposes.
 
-# Prerequisites
-PTV Vissim
-Python 2.7
-PyWin32 (For Vissim COM connection)
-x264vfw codec (For avi recording)
+## Prerequisites
+- PTV Vissim
+- Python 2.7
+- PyWin32 (For Vissim COM connection)
+- x264vfw codec (For avi recording)
 
 ## Download
 1) Clone or download this repository somewhere in your Vissim project directory. The location should not change.
@@ -31,6 +31,6 @@ x264vfw codec (For avi recording)
 1) Install the package with pip `pip install -e .`
 
 ## Use
-2) Import the car module using `import car`
-2) Import the uav module using `importuav`
-2) Import the comm module using `import comm`
+1) Import the car module using `import car`
+1) Import the uav module using `importuav`
+1) Import the comm module using `import comm`
