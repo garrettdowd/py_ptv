@@ -1,13 +1,11 @@
 
 
-def Car_setup(_Vissim, _custom_veh_type = 111, _car_skills=-1):
+def setup(_Vissim, _custom_veh_type = 111, _car_skills=-1):
     global Vissim
     global car_skills
     global custom_veh_type
 
-
-    Vissim = _Vissim
-    custom_veh_type = _custom_veh_type
+    
     if _car_skills == -1:
         # [Skill#,[comm_type(DEFINE), comm_range(m)]]
         car_skills = [
@@ -16,6 +14,11 @@ def Car_setup(_Vissim, _custom_veh_type = 111, _car_skills=-1):
         ]
     else:
         car_skills = _car_skills
+
+    #################################################################################
+    #################################################################################
+    Vissim = _Vissim
+    custom_veh_type = _custom_veh_type
 
 
 class Car:
@@ -40,7 +43,7 @@ class Car:
                     self.comm_range = car_skills[item][1][1]
                     flag = 1
             if flag == 0:
-                print("When instantiating a car object, given skill "+skill+" does not exist")
+                print("When instantiating a car object, given skill "+str(skill)+" does not exist")
                 Vissim.Simulation.Stop()
         else: # if car_num != 0
             # Get existing info from vehicle already defined in the network
@@ -77,18 +80,26 @@ class Car:
     def deactivate(self):
         self.active = 0
 
-    # def requestuav
 
     def sendMsg(self, recipient_id=-1, msg_type=0, payload=-1):
         if self.comms == -1:
-            print("Comms was not set up for car with ID "+self.id+" cannot sendMsg()")
+            print("Comms was not set up for car with ID "+str(self.id)+" cannot sendMsg()")
             return
-        if payload == -1:
+        if msg_type == 0 & payload == -1:
             payload = self.position
         # default message is broadcast to everyone listening (-1)
-        self.comms.broadcast(recipient_id,msg_type,payload)
+        self.comms.broadcast(self.position, msg_type, payload, recipient_id, self.id)
 
-    # def receiveMsg
+    # all of the logic for handling messages happens here
+    def receiveMsg(self, sender_id, msg_type, payload):
+        if msg_type == 0: # location
+            print("Hi")
 
 
+    # def get_car_front(self):
 
+
+    # def get_car_radius(self, radius):
+
+
+    # set destination, des speed, 

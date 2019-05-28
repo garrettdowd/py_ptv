@@ -1,7 +1,7 @@
 import datetime as dt
 import math
 
-def UAV_setup(_Vissim, _num_uavs = 8, _num_cameras = 1, _uav_base = [297, 380, 15], _uav_skills=-1, model_directory="3D Models", results_directory="Script.results"):
+def setup(_Vissim, _num_uavs = 8, _num_cameras = 1, _uav_base = [297, 380, 15], _uav_skills=-1, model_directory="3D Models", results_directory="Script.results"):
     global Vissim
     global uav_base
     global num_uavs
@@ -10,10 +10,7 @@ def UAV_setup(_Vissim, _num_uavs = 8, _num_cameras = 1, _uav_base = [297, 380, 1
     global cameras
     global uav_models
 
-    Vissim = _Vissim
-    uav_base = _uav_base
-    num_uavs = _num_uavs
-    num_cameras = _num_cameras
+    
     if _uav_skills == -1:
         # These skills define the characteristics/abilities of the objects during simulation
         # [Skill#,[min_speed(x,y)(m/s), max_speed(x,y)(m/s), max_acc(x,y,z)(m/s^2), max_ascent(z)(m/s), max_descent(z)(m/s), comm_range(m)]]
@@ -25,37 +22,43 @@ def UAV_setup(_Vissim, _num_uavs = 8, _num_cameras = 1, _uav_base = [297, 380, 1
     else:
         uav_skills = _uav_skills
 
-
-    # save this time to use for file naming
-    sim_time = str(dt.datetime.now().strftime("%y-%m-%d-%H-%M"))
-
-
     # cannot create static models during simulation 
     # so must create a predefined number before simulation starts
+    # define uav models
+    file3D = model_directory + "\\quad.skp"
+    scale = .9
     # define uav landing base
     file3D_base = model_directory + "\\uavbase.skp"
     scale_base = 1.5 # not implemented
 
-    # define uav models
-    file3D = model_directory + "\\quad.skp"
-    scale = .9
+    #################################################################################
+    #################################################################################
+    Vissim = _Vissim
+    uav_base = _uav_base
+    num_uavs = _num_uavs
+    num_cameras = _num_cameras
 
+    # save this time to use for file naming
+    sim_time = str(dt.datetime.now().strftime("%y-%m-%d-%H-%M"))
 
     # Create new stuff based on definitions above
     for i in range(num_uavs):
         Vissim.Net.Static3DModels.AddStatic3DModel(0, file3D, 'Point(0, 0, 0)')
-    for i in range(num_cameras):
-        Vissim.Net.CameraPositions.AddCameraPosition(0, 'Point(0, 0, 0)') # add one camera for each uav
-        Vissim.Net.Storyboards.AddStoryboard(0) # add one storyboard for each uav
-
     uav_models = Vissim.Net.Static3DModels.GetAll()
-    cameras = Vissim.Net.CameraPositions.GetAll()
-    storyboards = Vissim.Net.Storyboards.GetAll()
     for model in uav_models:
         model.SetAttValue('CoordX', uav_base[0])
         model.SetAttValue('CoordY', uav_base[1])
         model.SetAttValue('CoordZOffset', uav_base[2])
         model.SetAttValue('Scale', scale)
+
+    point = 'Point('+str(uav_base[0])+', '+str(uav_base[1])+', 0)' # Vissim requires this string format
+    base = Vissim.Net.Static3DModels.AddStatic3DModel(0, file3D_base, point)
+    base.SetAttValue('Scale', scale_base)
+
+    for i in range(num_cameras):
+        Vissim.Net.CameraPositions.AddCameraPosition(0, 'Point(0, 0, 0)') # add one camera for each uav
+        Vissim.Net.Storyboards.AddStoryboard(0) # add one storyboard for each uav
+    cameras = Vissim.Net.CameraPositions.GetAll()
     for camera in cameras:
         camera.SetAttValue('CoordX', uav_base[0])
         camera.SetAttValue('CoordY', uav_base[1])
@@ -64,7 +67,8 @@ def UAV_setup(_Vissim, _num_uavs = 8, _num_cameras = 1, _uav_base = [297, 380, 1
         camera.SetAttValue('PitchAngle', 90)
         camera.SetAttValue('RollAngle', 0)
         camera.SetAttValue('YawAngle', 0)
-    i = 0
+    storyboards = Vissim.Net.Storyboards.GetAll()
+    i = 0 # to name the video files
     for storyboard in storyboards:
         storyboard.SetAttValue('Filename', results_directory+"\\Video\\"+sim_time+" uavCam "+str(i)+".avi")
         storyboard.SetAttValue('RecAVI', "true") # create AVI file
@@ -82,9 +86,6 @@ def UAV_setup(_Vissim, _num_uavs = 8, _num_cameras = 1, _uav_base = [297, 380, 1
         i += 1
 
 
-    point = 'Point('+str(uav_base[0])+', '+str(uav_base[1])+', 0)' # Vissim requires this string format
-    Vissim.Net.Static3DModels.AddStatic3DModel(0, file3D_base, point)
-
 
 class UAV:
     # define what happens when an uav object is instatiated
@@ -95,21 +96,21 @@ class UAV:
             print("UAV instantiation invalid for 'pos'")
             Vissim.Simulation.Stop()
         self.id = id_num
-        # initialize time and position
         self.time = [float(Vissim.Simulation.AttValue('SimSec'))]
         self.x = [pos[0]]
         self.y = [pos[1]]
         self.z = [pos[2]]
         self.position = [self.x[-1],self.y[-1],self.z[-1]]
 
-        self.comms = comms
+        self.comms = comms # Comm object
 
         self.active = 1 # is this object currently active in the simulation?
-        self.dest = [[0,0,0]]
-        self.mission = 0 # defines what the uav should be doing e.g. car following or stationary
+        self.dest = [[0,0,0]] # destination. where uav should be flying to
+        self.mission = 0 # defines what the uav should be doing e.g. car following = 1, stationary point = 0.
         self.car_num = -1 # the number of the car in vissim that it should be following
         self.car_pos = [0,0] # place to store current [x,y] location of car with "car_num"
 
+        ##########################################################
         # if there is an available camera then take it
         if self.id < num_cameras:
             self.camera = cameras[self.id]
@@ -117,8 +118,9 @@ class UAV:
             self.camera = -1
 
         self._add3D()
-        self.update3D()
+        self._update3D()
 
+        ##########################################################
         # copy skills to local variables
         flag=0
         for item in uav_skills:
@@ -131,9 +133,10 @@ class UAV:
                 self.comm_range = item[1][5]
                 flag=1
         if flag == 0:
-            print("When instantiating a uav object, given skill #"+skill+" does not exist")
+            print("When instantiating a uav object, given skill #"+str(skill)+" does not exist")
             Vissim.Simulation.Stop()
 
+        ##########################################################
         # Stuff for control/simulation
         self._dist_errx = [0]   # error term for PID control
         self._dist_erry = [0]   # error term for PID control
@@ -169,21 +172,44 @@ class UAV:
 
 
     def sendMsg(self, recipient_id=-1, msg_type=0, payload=-1):
-        if payload == -1:
+        if self.comms == -1:
+            print("Comms was not set up for uav with ID "+str(self.id)+" cannot sendMsg()")
+            return
+        if msg_type == 0 & payload == -1:
             payload = self.position
         # default message is broadcast to everyone listening (-1)
-        self.comms.broadcast(recipient_id,msg_type,payload)
+        self.comms.broadcast(self.position, msg_type, payload, recipient_id, self.id)
 
 
     # all of the logic for handling messages happens here
-    def receiveMsg(self, msg_type, payload):
+    def receiveMsg(self, sender_id, msg_type, payload):
         if msg_type == 0: # location
             print("Hi")
 
 
+    def RTB(self):
+        self.setDest(uav_base)
+        self._tracking_flag = 0
 
 
-    def simXYZ(self, sim_type):
+    def update(self):
+        self._simXYZ("ZO")
+        self._update3D()
+
+
+    def deactivate(self):
+        self.active = 0
+        self._tracking_flag = 0
+        # self.model3D.SetAttValue('CoordX',0)
+        # self.model3D.SetAttValue('CoordY',0)
+        # self.model3D.SetAttValue('CoordZOffset',500)
+
+
+
+    ##############################################################################
+    #############################################################################
+
+    def _simXYZ(self, sim_type):
         SimSec = float(Vissim.Simulation.AttValue('SimSec'))
         dt = (SimSec - self.time[-1])
         
@@ -345,7 +371,7 @@ class UAV:
         self.z.append(newPosZ)
         self.time.append(SimSec)
 
-        self.update3D()
+        self._update3D()
 
 
 
@@ -395,7 +421,7 @@ class UAV:
             Vissim.Simulation.Stop()
         self.model3D = uav_models[self.id]
 
-    def update3D(self):
+    def _update3D(self):
         if self.model3D is None:
             print("No Static Model assigned to uav object "+self.id+"...")
             Vissim.Simulation.Stop()
@@ -413,20 +439,3 @@ class UAV:
             # self.camera.SetAttValue('RollAngle',0)
             # self.camera.SetAttValue('YawAngle',0)
 
-
-    def RTB(self):
-        self.setDest(uav_base)
-        self._tracking_flag = 0
-
-
-    def update(self):
-        self.simXYZ("ZO")
-        self.update3D()
-
-
-    def deactivate(self):
-        self.active = 0
-        self._tracking_flag = 0
-        # self.model3D.SetAttValue('CoordX',0)
-        # self.model3D.SetAttValue('CoordY',0)
-        # self.model3D.SetAttValue('CoordZOffset',500)

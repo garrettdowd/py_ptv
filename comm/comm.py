@@ -12,7 +12,7 @@ import random
 """
 global msg_types
 
-def Comm_setup(_Vissim, _msg_types=-1):
+def setup(_Vissim, _msg_types=-1):
     global Vissim
     global msg_types
     global SIM_RES
@@ -34,24 +34,28 @@ def Comm_setup(_Vissim, _msg_types=-1):
     else:
         msg_types = _msg_types
 
-    
-    SIM_RES = Vissim.Simulation.AttValue('SIM_RES')
-
+    #################################################################################
+    #################################################################################
+    SIM_RES = Vissim.Simulation.AttValue('SimRes')
 
 
 Message = namedtuple('Message', 'sender_id, recipient_id, msg_type, payload, delay, dropped')
 class Comm:
-    def __init__(self, id_num, list_of_lists_of_agents, reliability_pct = .9 , delay_gauss_mean = 0, delay_guass_stddev = 0):
+    def __init__(self, id_num, list_of_lists_of_agents, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
         self.id = id_num
         self.agents = list_of_lists_of_agents
         self.reliability_pct = reliability_pct
         self.delay_gauss_mean = delay_gauss_mean
         self.delay_guass_stddev = delay_guass_stddev
-
         self.s = Sched(self._timefunc)
         self.all_messages = []
 
     """ Intended Use Documentation Here
+    broadcast_location = [X,Y] or [X,Y,Z] - must be given as it determines which agents will be in range to receive the message
+    msg_type = integer - message types defined when instantiating the class
+    payload = string - parsing of payload is left to receiving agents
+    recipient_id = -1 will broadcast the message to all agents within range
+    sender_id = -1 means that the message is being sent anonymously
 
     """
     def broadcast(self, broadcast_location, msg_type, payload, recipient_id = -1, sender_id = -1):
@@ -68,18 +72,17 @@ class Comm:
                     msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position, agent.comm_range)
                     self._scheduleMsg(msg)
                 else:
-                    print("When broadcasting a message, given recipient_id #"+recipient_id+" does not exist")
-                    Vissim.Simulation.Stop()
+                    print("When broadcasting a message, given recipient_id #"+str(recipient_id)+" does not exist")
+                    # Vissim.Simulation.Stop()
 
     def _createMsg(self, sender_id, recipient_id, msg_type, payload, loc1, loc2, comm_range):
         delay = self._delay()
         dist = self._dist(loc1,loc2)
         dropped = self._drop(dist, comm_range)
-        msg =  Message(recipient_id, msg_type, payload, delay, dropped)
+        msg =  Message(sender_id, recipient_id, msg_type, payload, delay, dropped)
         self.all_messages.append(msg)
         return msg
 
-    # need something to handle if the delay is shorter than the sim time step
     def _scheduleMsg(self, message):
         if message.dropped == 0:
             if message.delay < SIM_RES:
@@ -91,7 +94,7 @@ class Comm:
         for agent_list in self.agents:
             agent = next((agent for agent in agent_list if agent.id==message.recipient_id), None)
             if agent != None:
-                agent.receiveMsg(message.msg_type, message.payload)
+                agent.receiveMsg(message.sender_id, message.msg_type, message.payload)
 
     # maybe should be based on congestion?
     def _delay(self):
