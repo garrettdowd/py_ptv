@@ -1,5 +1,5 @@
-# vissim_adl
-A collection of useful Vissim interfaces for autonomous and connected traffic
+# py_ptv
+A collection of useful Vissim command wrappers and functions for autonomous and connected traffic
 
 # Modules
 ## car

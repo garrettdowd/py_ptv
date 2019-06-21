@@ -10,7 +10,6 @@ import random
     Agents must have a receiveMsg(msg_type, payload) function
     Agents must have a unique "id" property - agent.id
 """
-global msg_types
 
 def setup(_Vissim, _msg_types=-1):
     global Vissim
@@ -58,18 +57,22 @@ class Comm:
     sender_id = -1 means that the message is being sent anonymously
 
     """
-    def broadcast(self, broadcast_location, msg_type, payload, recipient_id = -1, sender_id = -1):
+    # update should be called every loop. This allows delayed messages to be sent out
+    def update(self):
+        self.s.update()
+
+    def broadcast(self, broadcast_location, comm_range, msg_type, payload, recipient_id = -1, sender_id = -1):
         # recipient_id must be unique among all agents
         if recipient_id == -1: # broadcast to all agents including self
             for agent_list in self.agents:
                 for agent in agent_list:
-                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position, agent.comm_range)
+                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position, comm_range)
                     self._scheduleMsg(msg)
         else: # broadcast only to desired recipient_id
             for agent_list in self.agents:
                 agent = next((agent for agent in agent_list if agent.id==recipient_id), None)
                 if agent != None:
-                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position, agent.comm_range)
+                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position, comm_range)
                     self._scheduleMsg(msg)
                 else:
                     print("When broadcasting a message, given recipient_id #"+str(recipient_id)+" does not exist")
@@ -128,9 +131,6 @@ class Comm:
 
     def _timefunc(self):
         return float(Vissim.Simulation.AttValue('SimSec'))
-
-    def update(self):
-        self.s.update()
 
 
 

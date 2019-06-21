@@ -88,7 +88,7 @@ class Car:
         if msg_type == 0 & payload == -1:
             payload = self.position
         # default message is broadcast to everyone listening (-1)
-        self.comms.broadcast(self.position, msg_type, payload, recipient_id, self.id)
+        self.comms.broadcast(self.position, self.comm_range, msg_type, payload, recipient_id, self.id)
 
     # all of the logic for handling messages happens here
     def receiveMsg(self, sender_id, msg_type, payload):
