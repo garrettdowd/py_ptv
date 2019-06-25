@@ -1,6 +1,6 @@
 from collections import namedtuple
 import random
-
+import pandas as pd
 
 """ Intended Use Documentation Here
 
@@ -15,8 +15,10 @@ def setup(_Vissim, _msg_types=-1):
     global Vissim
     global msg_types
     global SIM_RES
+    global all_comms
 
     Vissim = _Vissim
+    all_comms = []
     if _msg_types == -1:
         # try to conform with SAE J2735 and other applicable standards
         msg_types = {
@@ -37,17 +39,50 @@ def setup(_Vissim, _msg_types=-1):
     #################################################################################
     SIM_RES = Vissim.Simulation.AttValue('SimRes')
 
+def update():
+    for comm in all_comms:
+        comm.update()
 
-Message = namedtuple('Message', 'sender_id, recipient_id, msg_type, payload, delay, dropped')
-class Comm:
-    def __init__(self, id_num, list_of_lists_of_agents, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
-        self.id = id_num
+
+def saveResults(filepath):
+    column_comms = ['timestamp', 'sender_id', 'recipient_id', 'msg_type', 'payload', 'delay', 'dropped']
+    df = []
+    for comm in all_comms:
+        for msg in comm.all_messages:
+            df_d = {
+                'timestamp': msg.timestamp,
+                'sender_id': msg.sender_id,
+                'recipient_id': msg.recipient_id,
+                'msg_type': msg.msg_type,
+                'payload': msg.payload,
+                'delay': msg.delay,
+                'dropped': msg.dropped
+            }
+            df.append(df_d)
+
+    df = pd.DataFrame(df)
+    df = df.reindex(columns=column_comms)  # ensure columns are in correct order
+    # df = df.iloc[::-1] # reverse order of rows
+    df.to_csv(filepath, encoding='utf-8', index=False)
+
+
+
+Message = namedtuple('Message', 'timestamp, sender_id, recipient_id, msg_type, payload, delay, dropped')
+class newComm:
+    def __init__(self, list_of_lists_of_agents, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
+        # define a unique id
+        if not all_comms:
+            self.id = 0
+        else:
+            max_id = max([comm.id for comm in all_comms])
+            self.id = max_id + 1
         self.agents = list_of_lists_of_agents
         self.reliability_pct = reliability_pct
         self.delay_gauss_mean = delay_gauss_mean
         self.delay_guass_stddev = delay_guass_stddev
         self.s = Sched(self._timefunc)
         self.all_messages = []
+        all_comms.append(self)
 
     """ Intended Use Documentation Here
     broadcast_location = [X,Y] or [X,Y,Z] - must be given as it determines which agents will be in range to receive the message
@@ -66,23 +101,24 @@ class Comm:
         if recipient_id == -1: # broadcast to all agents including self
             for agent_list in self.agents:
                 for agent in agent_list:
-                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position, comm_range)
+                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position(), comm_range)
                     self._scheduleMsg(msg)
         else: # broadcast only to desired recipient_id
             for agent_list in self.agents:
                 agent = next((agent for agent in agent_list if agent.id==recipient_id), None)
                 if agent != None:
-                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position, comm_range)
+                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position(), comm_range)
                     self._scheduleMsg(msg)
                 else:
                     print("When broadcasting a message, given recipient_id #"+str(recipient_id)+" does not exist")
                     # Vissim.Simulation.Stop()
 
     def _createMsg(self, sender_id, recipient_id, msg_type, payload, loc1, loc2, comm_range):
+        time = Vissim.Simulation.AttValue('SimSec')
         delay = self._delay()
         dist = self._dist(loc1,loc2)
         dropped = self._drop(dist, comm_range)
-        msg =  Message(sender_id, recipient_id, msg_type, payload, delay, dropped)
+        msg =  Message(time, sender_id, recipient_id, msg_type, payload, delay, dropped)
         self.all_messages.append(msg)
         return msg
 
@@ -121,13 +157,19 @@ class Comm:
     # this needs to be updated with an equation that can better model the chance of dropping messages based on distance
     def _drop(self, dist, comm_range):
         normalized_diff = (dist - comm_range)/comm_range
-        drop_chance = (1-self.reliability_pct)**(normalized_diff)-(1-self.reliability_pct) # https://www.desmos.com/calculator/w1g0o7umlq
-        if drop_chance > 1:
+        # This is the function that calculates dropped message probability
+        # Does not current function (zero cannot be raised to a negative power)
+        # drop_chance = (1-self.reliability_pct)**(normalized_diff)-(1-self.reliability_pct) # https://www.desmos.com/calculator/w1g0o7umlq
+        # if drop_chance > 1:
+        #     return 0
+        # elif drop_chance < 0:
+        #     return 1
+        # else:
+        #     return random.randint(0,1)
+        if normalized_diff > 0:
             return 0
-        elif drop_chance < 0:
+        elif normalized_diff < 0:
             return 1
-        else:
-            return random.randint(0,1)
 
     def _timefunc(self):
         return float(Vissim.Simulation.AttValue('SimSec'))

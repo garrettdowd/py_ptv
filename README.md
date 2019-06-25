@@ -26,7 +26,7 @@ This package is currently in an alpha state. It is meant to be locally installed
 - x264vfw codec (For avi recording)
 
 ## Download
-1) Clone or download this repository somewhere in your Vissim project directory. The location should not change.
+1) Clone or download this repository somewhere in your Vissim project directory (or somewhere safe). The location should not change.
 1) In command prompt `cd` to the downloaded directory with the `setup.py` file
 1) Install the package with pip `pip install -e .`
 
