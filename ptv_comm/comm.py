@@ -1,7 +1,9 @@
+import logging
 from collections import namedtuple
 import random
 import pandas as pd
 
+logger = logging.getLogger(__name__)
 """ Intended Use Documentation Here
 
     message delays can be used, but anything shorter than the sim time step
@@ -11,87 +13,73 @@ import pandas as pd
     Agents must have a unique "id" property - agent.id
 """
 
-def setup(_Vissim, _msg_types=-1):
+def setup(_Vissim):
     global Vissim
-    global msg_types
     global SIM_RES
-    global all_comms
 
     Vissim = _Vissim
-    all_comms = []
-    if _msg_types == -1:
-        # try to conform with SAE J2735 and other applicable standards
-        msg_types = {
-            'location': 0,  # [x,y,z] coordinates
-            'BSM':      1,  # [time, message #, location, speed, heading, acceleration]
-            'SPAT':     2,
-            'TIM':      3,  # can be used for a lot of stuff, use ITIS phrases
-            'EVA':      4,  # emergency vehicle alert
-            'ICA':      5,  # intersection collision avoidance
-            'PSM':      6,  # personal safety message, for vulnerable road users
-            'PVD':      10, # probe vehicle data, send data to RSU
-            'RSA':      20, # road side alert
-        }
-    else:
-        msg_types = _msg_types
-
-    #################################################################################
-    #################################################################################
     SIM_RES = Vissim.Simulation.AttValue('SimRes')
+    
 
 def update():
-    for comm in all_comms:
+    for comm in Comm.all_comms:
         comm.update()
-
-
-def saveResults(filepath):
-    column_comms = ['timestamp', 'sender_id', 'recipient_id', 'msg_type', 'payload', 'delay', 'dropped']
-    df = []
-    for comm in all_comms:
-        for msg in comm.all_messages:
-            df_d = {
-                'timestamp': msg.timestamp,
-                'sender_id': msg.sender_id,
-                'recipient_id': msg.recipient_id,
-                'msg_type': msg.msg_type,
-                'payload': msg.payload,
-                'delay': msg.delay,
-                'dropped': msg.dropped
-            }
-            df.append(df_d)
-
-    df = pd.DataFrame(df)
-    df = df.reindex(columns=column_comms)  # ensure columns are in correct order
-    # df = df.iloc[::-1] # reverse order of rows
-    df.to_csv(filepath, encoding='utf-8', index=False)
 
 
 
 Message = namedtuple('Message', 'timestamp, sender_id, recipient_id, msg_type, payload, delay, dropped')
-class newComm:
-    def __init__(self, list_of_lists_of_agents, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
-        # define a unique id
-        if not all_comms:
-            self.id = 0
-        else:
-            max_id = max([comm.id for comm in all_comms])
-            self.id = max_id + 1
-        self.agents = list_of_lists_of_agents
-        self.reliability_pct = reliability_pct
-        self.delay_gauss_mean = delay_gauss_mean
-        self.delay_guass_stddev = delay_guass_stddev
-        self.s = Sched(self._timefunc)
-        self.all_messages = []
-        all_comms.append(self)
-
-    """ Intended Use Documentation Here
+""" Intended Use Documentation Here
     broadcast_location = [X,Y] or [X,Y,Z] - must be given as it determines which agents will be in range to receive the message
     msg_type = integer - message types defined when instantiating the class
     payload = string - parsing of payload is left to receiving agents
     recipient_id = -1 will broadcast the message to all agents within range
     sender_id = -1 means that the message is being sent anonymously
 
-    """
+"""
+# Allows us to directly on the class
+# class IterComm(type):
+#     def __iter__(cls):
+#         return iter(cls.all_comms)
+
+class Comm:
+    # __metaclass__ = type
+    all_comms = []
+
+    def __init__(self, tech_type, list_of_lists_of_agents, msg_types=-1, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
+
+        # define a unique id
+        if not self.all_comms:
+            self.id = 0
+        else:
+            max_id = max([comm.id for comm in self.all_comms])
+            self.id = max_id + 1
+
+        if msg_types == -1:
+            # try to conform with SAE J2735 and other applicable standards
+            self.msg_types = {
+                'location': 0,  # [x,y,z] coordinates
+                'BSM':      1,  # [time, message #, location, speed, heading, acceleration]
+                'SPAT':     2,
+                'TIM':      3,  # can be used for a lot of stuff, use ITIS phrases
+                'EVA':      4,  # emergency vehicle alert
+                'ICA':      5,  # intersection collision avoidance
+                'PSM':      6,  # personal safety message, for vulnerable road users
+                'PVD':      10, # probe vehicle data, send data to RSU
+                'RSA':      20, # road side alert
+            }
+        else:
+            self.msg_types = _msg_types
+
+        self.type = tech_type
+        self.agents = list_of_lists_of_agents
+        self.reliability_pct = reliability_pct
+        self.delay_gauss_mean = delay_gauss_mean
+        self.delay_guass_stddev = delay_guass_stddev
+        self.s = Sched(self._timefunc)
+        self.all_messages = []
+
+        self.all_comms.append(self) # add this instance to list of all instances for iteration
+
     # update should be called every loop. This allows delayed messages to be sent out
     def update(self):
         self.s.update()
@@ -110,7 +98,7 @@ class newComm:
                     msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position(), comm_range)
                     self._scheduleMsg(msg)
                 else:
-                    print("When broadcasting a message, given recipient_id #"+str(recipient_id)+" does not exist")
+                    logger.error("When broadcasting a message, given recipient_id #"+str(recipient_id)+" does not exist")
                     # Vissim.Simulation.Stop()
 
     def _createMsg(self, sender_id, recipient_id, msg_type, payload, loc1, loc2, comm_range):
@@ -141,13 +129,13 @@ class newComm:
 
     def _dist(self, loc1, loc2):
         if len(loc1) < 2 | len(loc1) > 3:
-            print("Invalid location 1 for class Comm method _dist()")
+            logger.critical("Invalid location 1 for class Comm method _dist()")
             Vissim.Simulation.Stop()
         elif len(loc1) == 2:
             loc1.append(0)
 
         if len(loc2) < 2 | len(loc2) > 3:
-            print("Invalid location 2 for class Comm method _dist()")
+            logger.critical("Invalid location 2 for class Comm method _dist()")
             Vissim.Simulation.Stop()
         if len(loc2) == 2:
             loc2.append(0)
@@ -156,7 +144,7 @@ class newComm:
 
     # this needs to be updated with an equation that can better model the chance of dropping messages based on distance
     def _drop(self, dist, comm_range):
-        normalized_diff = (dist - comm_range)/comm_range
+        normalized_diff = (comm_range - dist)/comm_range
         # This is the function that calculates dropped message probability
         # Does not current function (zero cannot be raised to a negative power)
         # drop_chance = (1-self.reliability_pct)**(normalized_diff)-(1-self.reliability_pct) # https://www.desmos.com/calculator/w1g0o7umlq
@@ -167,13 +155,40 @@ class newComm:
         # else:
         #     return random.randint(0,1)
         if normalized_diff > 0:
-            return 0
+            return 0 # message is not dropped
         elif normalized_diff < 0:
-            return 1
+            return 1 # message is dropped
 
     def _timefunc(self):
         return float(Vissim.Simulation.AttValue('SimSec'))
 
+
+
+def saveResults(filepath):
+    column_comms = ['timestamp', 'sender_id', 'recipient_id', 'msg_type', 'payload', 'delay', 'dropped']
+    df = []
+    for comm in Comm.all_comms:
+        for msg in comm.all_messages:
+            df_d = {
+                'timestamp': msg.timestamp,
+                'sender_id': msg.sender_id,
+                'recipient_id': msg.recipient_id,
+                'msg_type': msg.msg_type,
+                'payload': msg.payload,
+                'delay': msg.delay,
+                'dropped': msg.dropped
+            }
+            df.append(df_d)
+
+    df = pd.DataFrame(df)
+    df = df.reindex(columns=column_comms)  # ensure columns are in correct order
+    # df = df.iloc[::-1] # reverse order of rows
+    df.to_csv(filepath, encoding='utf-8', index=False)
+
+
+
+def id(num):
+    return next((comm for comm in Comm.all_comms if comm.id==num), None)
 
 
 
