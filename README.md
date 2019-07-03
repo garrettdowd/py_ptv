@@ -3,17 +3,23 @@ A collection of useful Vissim command wrappers and functions for autonomous and 
 
 # Modules
 ## car
+**ptv_veh.car**  
 This module provides a python object to easily interact with vehicles in Vissim. 
-Documentation on the provided methods needs to be written
+*Documentation on the provided methods needs to be written*  
 
 ## uav
+**ptv_veh.uav**  
 This module allows you to add a UAV to your Vissim simulation environment. 
 Decision logic and dynamics are fully handled within this class. 
 The UAV can be visualized as a 3D model during simulation.  
-Documentation on the provided methods needs to be written
+Video recordings can be taken from the persepctive of the UAV.  
+*Documentation on the provided methods needs to be written*  
 
-## comm
-This module provides a generic method for one agent to send a message to other agents
+## network
+**ptv_comm.network**  
+This module provides a generic class for one agent to send a message to other agents  
+*Documentation on the provided methods needs to be written*  
+*Documentation on the requirements of the agent's methods needs to be written*  
 
 
 # Installation notes
@@ -31,6 +37,7 @@ This package is currently in an alpha state. It is meant to be locally installed
 1) Install the package with pip `pip install -e .`
 
 ## Use
-1) Import the car module using `import car`
-1) Import the uav module using `importuav`
-1) Import the comm module using `import comm`
+**See example.py** for a good starting point.
+1) Import the car module using `from ptv_veh import car`
+1) Import the uav module using `from ptv_veh import uav`
+1) Import the network module using `from ptv_comm import network`
