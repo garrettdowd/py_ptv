@@ -13,9 +13,8 @@ setup(name='py_ptv',
       author_email='me@garrettdowd.com',
       license='MIT',
       packages=[
-          'ptv_car',
+          'ptv_veh',
           'ptv_comm',
-          'ptv_uav',
       ],
       install_requires=[
           'pandas',

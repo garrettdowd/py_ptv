@@ -3,7 +3,18 @@ from collections import namedtuple
 import random
 import pandas as pd
 
+__author__ = "Garrett Dowd"
+__copyright__ = "Copyright (C) 2019 Garrett Dowd"
+__license__ = "MIT"
+__version__ = "0.0.1"
+'''
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+'''
+
 logger = logging.getLogger(__name__)
+Message = namedtuple('Message', 'timestamp, sender_id, recipient_id, msg_type, payload, delay, dropped')
+
 """ Intended Use Documentation Here
 
     message delays can be used, but anything shorter than the sim time step
@@ -14,7 +25,7 @@ logger = logging.getLogger(__name__)
 """
 
 def setup(_Vissim):
-    global Vissim
+    global Vissim # follows naming convention of standard Vissim COM interface
     global SIM_RES
 
     Vissim = _Vissim
@@ -22,12 +33,10 @@ def setup(_Vissim):
     
 
 def update():
-    for comm in Comm.all_comms:
-        comm.update()
+    for net in Net.all_nets:
+        net.update()
 
 
-
-Message = namedtuple('Message', 'timestamp, sender_id, recipient_id, msg_type, payload, delay, dropped')
 """ Intended Use Documentation Here
     broadcast_location = [X,Y] or [X,Y,Z] - must be given as it determines which agents will be in range to receive the message
     msg_type = integer - message types defined when instantiating the class
@@ -39,33 +48,33 @@ Message = namedtuple('Message', 'timestamp, sender_id, recipient_id, msg_type, p
 # Allows us to directly on the class
 # class IterComm(type):
 #     def __iter__(cls):
-#         return iter(cls.all_comms)
+#         return iter(cls.all_nets)
 
-class Comm:
+class Net:
     # __metaclass__ = type
-    all_comms = []
+    all_nets = []
 
     def __init__(self, tech_type, list_of_lists_of_agents, msg_types=-1, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
 
         # define a unique id
-        if not self.all_comms:
+        if not self.all_nets:
             self.id = 0
         else:
-            max_id = max([comm.id for comm in self.all_comms])
+            max_id = max([net.id for net in self.all_nets])
             self.id = max_id + 1
 
         if msg_types == -1:
             # try to conform with SAE J2735 and other applicable standards
             self.msg_types = {
                 'location': 0,  # [x,y,z] coordinates
-                'BSM':      1,  # [time, message #, location, speed, heading, acceleration]
-                'SPAT':     2,
-                'TIM':      3,  # can be used for a lot of stuff, use ITIS phrases
-                'EVA':      4,  # emergency vehicle alert
-                'ICA':      5,  # intersection collision avoidance
-                'PSM':      6,  # personal safety message, for vulnerable road users
-                'PVD':      10, # probe vehicle data, send data to RSU
-                'RSA':      20, # road side alert
+                'BSM':      20,  # [time, message #, location, speed, heading, acceleration]
+                'SPAT':     19,
+                'TIM':      31,  # can be used for a lot of stuff, use ITIS phrases
+                'EVA':      22,  # emergency vehicle alert
+                'ICA':      23,  # intersection collision avoidance
+                'PSM':      32,  # personal safety message, for vulnerable road users
+                'PVD':      26, # probe vehicle data, send data to RSU
+                'RSA':      27, # road side alert
             }
         else:
             self.msg_types = _msg_types
@@ -78,7 +87,7 @@ class Comm:
         self.s = Sched(self._timefunc)
         self.all_messages = []
 
-        self.all_comms.append(self) # add this instance to list of all instances for iteration
+        self.all_nets.append(self) # add this instance to list of all instances for iteration
 
     # update should be called every loop. This allows delayed messages to be sent out
     def update(self):
@@ -129,13 +138,13 @@ class Comm:
 
     def _dist(self, loc1, loc2):
         if len(loc1) < 2 | len(loc1) > 3:
-            logger.critical("Invalid location 1 for class Comm method _dist()")
+            logger.critical("Invalid location 1 for class Net method _dist()")
             Vissim.Simulation.Stop()
         elif len(loc1) == 2:
             loc1.append(0)
 
         if len(loc2) < 2 | len(loc2) > 3:
-            logger.critical("Invalid location 2 for class Comm method _dist()")
+            logger.critical("Invalid location 2 for class Net method _dist()")
             Vissim.Simulation.Stop()
         if len(loc2) == 2:
             loc2.append(0)
@@ -167,8 +176,8 @@ class Comm:
 def saveResults(filepath):
     column_comms = ['timestamp', 'sender_id', 'recipient_id', 'msg_type', 'payload', 'delay', 'dropped']
     df = []
-    for comm in Comm.all_comms:
-        for msg in comm.all_messages:
+    for net in Net.all_nets:
+        for msg in net.all_messages:
             df_d = {
                 'timestamp': msg.timestamp,
                 'sender_id': msg.sender_id,
@@ -188,7 +197,7 @@ def saveResults(filepath):
 
 
 def id(num):
-    return next((comm for comm in Comm.all_comms if comm.id==num), None)
+    return next((net for net in Net.all_nets if net.id==num), None)
 
 
 

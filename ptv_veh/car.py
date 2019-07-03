@@ -2,7 +2,17 @@ import logging
 from collections import namedtuple
 import pandas as pd
 
+__author__ = "Garrett Dowd"
+__copyright__ = "Copyright (C) 2019 Garrett Dowd"
+__license__ = "MIT"
+__version__ = "0.0.1"
+'''
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+'''
+
 logger = logging.getLogger(__name__)
+Skill = namedtuple('Skill', 'id, comm_type, dist_distr')
 
 """ Intended Use Documentation Here
 
@@ -11,30 +21,37 @@ logger = logging.getLogger(__name__)
 
 """
 
-Skill = namedtuple('Skill', 'id, comm_type, comm_range')
+def setup(_Vissim, _custom_veh_type_list = [111], _CAR_SKILLS=-1):
+    global Vissim # follows naming convention of standard Vissim COM interface
+    global CAR_SKILLS
+    global CUSTOM_VEH_TYPES
 
-def setup(_Vissim, _custom_veh_type_list = [111], _car_skills=-1):
-    global Vissim
-    global car_skills
-    global custom_veh_types
-
-    if _car_skills == -1:
-        # [Skill#,[comm_type(DEFINE), comm_range(m)]]
-        car_skills = [
+    if _CAR_SKILLS == -1:
+        # [skil_id(DEFINE),[comm_type(DEFINE), comm_range(DEFINE))]]
+        CAR_SKILLS = [
             Skill(0,'dsrc',300),
             Skill(10,'dsrc',500),
-            Skill(20,'dsrc',900),
-            Skill(100,'bt',400),
-            Skill(200,'cell',800),
-            Skill(300,'web',100000)
+            Skill(20,'dsrc',1000),
+            Skill(100,'bt',200),
+            Skill(200,'cell',500),
+            Skill(300,'web',100000) # 'infinite' range
         ]
+        # # [skil_id(DEFINE),[comm_type(DEFINE), comm_range_dist(Distance Distribution No)]]
+        # CAR_SKILLS = [
+        #     Skill(0,'dsrc',1),
+        #     Skill(10,'dsrc',2),
+        #     Skill(20,'dsrc',3),
+        #     Skill(100,'bt',50),
+        #     Skill(200,'cell',100),
+        #     Skill(300,'web',150)
+        # ]
     else:
-        car_skills = _car_skills
+        CAR_SKILLS = _CAR_SKILLS
 
     #################################################################################
     #################################################################################
     Vissim = _Vissim
-    custom_veh_types = _custom_veh_type_list
+    CUSTOM_VEH_TYPES = _custom_veh_type_list
 
 
 
@@ -44,7 +61,7 @@ def update(): # call at beginning of every loop
 
     all_veh_attributes = Vissim.Net.Vehicles.GetMultipleAttributes(('No', 'VehType'))
     # deactivate all out of scope vehicles
-    for veh_type in custom_veh_types:
+    for veh_type in CUSTOM_VEH_TYPES:
         new_car_nums = [int(veh[0]) for veh in all_veh_attributes if int(veh[1])==veh_type]
         old_car_nums = [car.id for car in Car.all_cars]
 
@@ -178,30 +195,95 @@ class Car:
         logger.debug("Setting comms for car # "+str(self.id))
         self.comms = comm
 
-    def setSkill(self,skill):
+    def setSkill(self,skill_id):
         flag = 0
-        for item in car_skills:
-            if item.id == skill:
-                self.comm_type = item.comm_type
-                self.comm_range = item.comm_range
+        for skill in CAR_SKILLS:
+            if skill.id == skill_id:
+                self.comm_type = skill.comm_type
+                self.comm_type = skill.comm_range
                 flag = 1
+                # dists = Vissim.Net.DistanceDistribution.GetAll()
+                # for dist in dists:
+                #     if int(dist.AttValue('No')) == skill.dist_distr
+                #         self.comm_range = int(dist.AttValue('UpperBound'))
+                #         flag = 2
+                
         if flag == 0:
-            logger.critical("When instantiating a car object, given skill "+str(skill)+" does not exist")
+            logger.critical("When setting car # "+str(self.id)+" skills, given skill "+str(skill_id)+" does not exist")
             Vissim.Simulation.Stop()
+        # elif flagg == 1:
+        #     logger.critical("When setting car # "+str(self.id)+" skills, given distance distribution "+str(skill.dist_distr)+" does not exist in Vissim")
+        #     Vissim.Simulation.Stop()
 
 
     #######################################################
     """ Helper functions go here
 
     """
-    # def get_car_front(self):
+    def get_car_front(self,max_dist=300):
+        front_car = []
+        cars = self.get_car_radius(max_dist)
 
 
-    # def get_car_radius(self, radius):
-
-
-    #######################################################
-    """ Wrapper functions go here
+    """ Returns car id numbers within specified radius
 
     """
-    # set destination, des speed, 
+    def get_car_radius(self, radius=300, scope='all', method='brute', dist_distr=1):
+        close_cars = []
+
+        if scope == 'all':
+            attributes = ('No','CoordFrontX','CoordFrontY')
+            if method == 'vissim':
+                try:
+                    temp = Vissim.Net.Vehicles.GetByLocation(self.x[-1], self.y[-1], dist_distr) # limited by using predefined distance distribution
+                    cars = temp.GetMultipleAttributes(attributes)
+                except:
+                    logger.error("Most likely distance distribution "+str(dist_distr)+" is not setup in Vissim yet. This must be configured before using method 'vissim'")
+            elif method = 'brute':
+                cars = Vissim.Net.Vehicles.GetMultipleAttributes(attributes)
+            else:
+                logger.error("method "+str(method)+" not valid. Options are 'vissim' and 'brute'")
+                return close_cars
+            
+            for i in range(len(cars)):
+                current_car=cars[i]
+                coord_x = float(current_car[1])
+                coord_y = float(current_car[2])
+                dist = self._dist(self.position,[coord_x,coord_y])
+                if dist <= radius:
+                    close_cars.append(int(current_car[0]))
+
+        elif scope = 'tracked'
+            for car in Car.active_cars:
+                dist = self._dist(self.position,car.position) 
+                if dist <= radius:
+                    close_cars.append(car.id)
+        
+        else:
+            logger.error("scope '"+str(scope)+"' not valid. Options are 'all' and 'tracked'")
+        return close_cars
+
+
+    def _dist(self, loc1, loc2):
+        if len(loc1) < 2 | len(loc1) > 3:
+            logger.critical("Invalid location 1 for class Car method _dist()")
+            Vissim.Simulation.Stop()
+        elif len(loc1) == 2:
+            loc1.append(0)
+
+        if len(loc2) < 2 | len(loc2) > 3:
+            logger.critical("Invalid location 2 for class Car method _dist()")
+            Vissim.Simulation.Stop()
+        if len(loc2) == 2:
+            loc2.append(0)
+
+        return (loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2 + (loc1[2] - loc2[2])**2 
+    #######################################################
+    """ Wrapper functions go here
+    
+    """
+    def set_desired_speed(self, speed = 0):
+        self.vissim.SetAttValue('DesSpeed',speed)
+
+    def move_to_link(self, link_number, lane_number=0, link_coordinate=0):
+        self.vissim.MoveToLinkPosition(link_number, lane_number, link_coordinate)

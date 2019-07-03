@@ -3,19 +3,41 @@ import os
 import datetime as dt
 import random
 
-# the structure of the package might need to be refined. car.car is not intuitive and awkward
-import car.car as CAR
-import uav.uav as UAV
-import comm.comm as COMM
-# import numpy as np
+from ptv_veh import car as vcar
+from ptv_veh import uav as vuav
+from ptv_comm import network as vnet
+
+__author__ = "Garrett Dowd"
+__copyright__ = "Copyright (C) 2019 Garrett Dowd"
+__license__ = "MIT"
+__version__ = "0.0.1"
+'''
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+'''
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+fh = logging.FileHandler('comm_test log.txt')
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 ###################################### NOTES
-""" Need to install Python 2.7, pywin, x264vfw, pandas, vissim_adl (custom package)
+""" Need to install Python 2.7, pywin, x264vfw, pandas, py_ptv (custom package)
   -  http://vision-traffic.ptvgroup.com/nl/training-support/support/ptv-vissim/faqs/visfaq/show/VIS25413/
 Ensure that this file is in the same directory as the VISSIM files
 May need to register VISSIM as COM Server
 May need to manually start recording of avi
-Can manually adjust quality of avi recordings - see manual and search for "x264"
+Can manually adjust quality of avi recordings - see Vissim manual and search for "x264"
 """
 
 
@@ -52,7 +74,7 @@ def Initialization():
 
     #################################################################################
     #################################################################################
-    uavs = [] # list of UAV objects
+    uavs = [] # list of vuav objects
     cars = [] # list of Car objects
     comms = [] # list of Comm objects
 
@@ -82,9 +104,9 @@ def Initialization():
         Vissim.Net.Storyboards.RemoveStoryboard(storyboard)
 
 
-    CAR.setup(Vissim)
-    UAV.setup(Vissim, num_uavs, num_cameras)
-    COMM.setup(Vissim)
+    vcar.setup(Vissim)
+    vuav.setup(Vissim, num_uavs, num_cameras)
+    vnet.setup(Vissim)
 
     # define a unique id
     if not comms:
@@ -92,7 +114,7 @@ def Initialization():
     else:
         max_id = max([comm.id for comm in comms])
         id_num = max_id + 1
-    comms.append(COMM.Comm(id_num, [uavs,cars]))
+    comms.append(vnet.Comm(id_num, [uavs,cars]))
 
     random.seed(Vissim.Simulation.AttValue('RandSeed')) # set random seed from PTV Vissim in order to be able to replicate the results.
 
@@ -128,7 +150,7 @@ def findNewCars(veh_type):
 
     new_cars = []
     for car_num in new_car_nums:
-        new_car = CAR.Car(car_num)
+        new_car = vcar.Car(car_num)
         cars.append(new_car)
         new_cars.append(new_car)
 
@@ -171,8 +193,8 @@ def runSingleStep():
             else:
                 max_id = max([uav.id for uav in uavs])
                 id_num = max_id + 1
-            print("Creating UAV with id = "+str(id_num))
-            uav = UAV.UAV(id_num)
+            print("Creating vuav with id = "+str(id_num))
+            uav = vuav.vuav(id_num)
             uav.setCar(car.id)
             uavs.append(uav)
             print("Camera number is "+str(uav.camera))
