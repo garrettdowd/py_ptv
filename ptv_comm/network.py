@@ -7,10 +7,7 @@ __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
 __license__ = "MIT"
 __version__ = "0.0.1"
-'''
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-'''
+
 
 logger = logging.getLogger(__name__)
 Message = namedtuple('Message', 'timestamp, sender_id, recipient_id, msg_type, payload, delay, dropped')
@@ -54,6 +51,12 @@ class Net:
     # __metaclass__ = type
     all_nets = []
 
+    def __eq__(self, other):
+        if other == -1:
+            return False
+        else:
+            return self.id == other.id
+
     def __init__(self, tech_type, list_of_lists_of_agents, msg_types=-1, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
 
         # define a unique id
@@ -95,11 +98,12 @@ class Net:
 
     def broadcast(self, broadcast_location, comm_range, msg_type, payload, recipient_id = -1, sender_id = -1):
         # recipient_id must be unique among all agents
-        if recipient_id == -1: # broadcast to all agents including self
+        if recipient_id == -1: # broadcast to all agents NOT including self (unless sent anonymously)
             for agent_list in self.agents:
                 for agent in agent_list:
-                    msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position(), comm_range)
-                    self._scheduleMsg(msg)
+                    if agent.id != sender_id:
+                        msg = self._createMsg(sender_id, agent.id, msg_type, payload, broadcast_location, agent.position(), comm_range)
+                        self._scheduleMsg(msg)
         else: # broadcast only to desired recipient_id
             for agent_list in self.agents:
                 agent = next((agent for agent in agent_list if agent.id==recipient_id), None)

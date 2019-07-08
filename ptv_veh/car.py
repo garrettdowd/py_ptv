@@ -6,13 +6,11 @@ __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
 __license__ = "MIT"
 __version__ = "0.0.1"
-'''
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-'''
+
 
 logger = logging.getLogger(__name__)
-Skill = namedtuple('Skill', 'id, comm_type, dist_distr')
+Skill = namedtuple('Skill', 'id, comm_type, comm_range')
+# Skill = namedtuple('Skill', 'id, comm_type, dist_distr')
 
 """ Intended Use Documentation Here
 
@@ -27,9 +25,9 @@ def setup(_Vissim, _custom_veh_type_list = [111], _CAR_SKILLS=-1):
     global CUSTOM_VEH_TYPES
 
     if _CAR_SKILLS == -1:
-        # [skil_id(DEFINE),[comm_type(DEFINE), comm_range(DEFINE))]]
+        # [skill_id(DEFINE),[comm_type(DEFINE), comm_range(DEFINE))]]
         CAR_SKILLS = [
-            Skill(0,'dsrc',300),
+            Skill(0,'dsrc',700),
             Skill(10,'dsrc',500),
             Skill(20,'dsrc',1000),
             Skill(100,'bt',200),
@@ -63,14 +61,13 @@ def update(): # call at beginning of every loop
     # deactivate all out of scope vehicles
     for veh_type in CUSTOM_VEH_TYPES:
         new_car_nums = [int(veh[0]) for veh in all_veh_attributes if int(veh[1])==veh_type]
-        old_car_nums = [car.id for car in Car.all_cars]
-
+        old_car_nums = [car.id for car in Car.all_cars if car.type==veh_type]
         for num in old_car_nums:
-            if num not in new_car_nums:
-                car = next((car for car in Car.all_cars if car.id==num), None)
-                car.deactivate()
             if num in new_car_nums:
                 new_car_nums.remove(num)
+            else:
+                car = next((car for car in Car.all_cars if car.id==num), None)
+                car.deactivate()
         for num in new_car_nums:
             Car(num)
 
@@ -113,6 +110,9 @@ class Car:
     new_cars = []
     null_cars = []
 
+    def __eq__(self, other):
+        return self.id == other.id
+
     def __init__(self, car_num=0,comm=-1,skill=0,veh_type=100,link=1,lane=1,desired_speed=0):
         logger.debug("Creating a Car object with # "+str(car_num))
         if car_num == 0:
@@ -136,9 +136,9 @@ class Car:
             self.lane = int(linklane.split("-")[1])
             self.speed = float(self.vissim.AttValue('Speed'))
 
-        self.all_cars.append(self) # add to list of all cars
-        self.active_cars.append(self)
-        self.new_cars.append(self)
+        Car.all_cars.append(self) # add to list of all cars
+        Car.active_cars.append(self)
+        Car.new_cars.append(self)
         # initialize time and position
         self.time = [float(Vissim.Simulation.AttValue('SimSec'))]
         self.x = [float(self.vissim.AttValue('CoordFrontX'))]
@@ -168,27 +168,43 @@ class Car:
 
     def deactivate(self):
         self.active = 0
-        self.active_cars.remove(self)
-        self.null_cars.append(self)
+        Car.active_cars.remove(self)
+        Car.null_cars.append(self)
 
     #######################################################
     """ Communication functions go here
 
     """
-    def sendMsg(self, recipient_id=-1, msg_type=0, payload='null'):
+    def sendMsg(self, recipient_id=-1, msg_type='loc', payload='null'):
         if self.comms == -1:
             logger.error("Comms was not set up for car with ID "+str(self.id)+" cannot sendMsg()")
-        if (int(msg_type) == 0) & (payload == 'null'):
+        if (msg_type == 'loc') & (payload == 'null'):
             payload = self.position()
-             
+        if (msg_type == 'RSA') & (payload == 'null'):
+            payload = [self.position(), self.link, self.lane]
+        logger.debug("Car # " + str(self.id) + " sending payload "+str(payload) +" to " + str(recipient_id))
         # default message is broadcast to everyone listening (-1)
         self.comms.broadcast(self.position(), self.comm_range, msg_type, payload, recipient_id, self.id)
-        logger.debug("Car # " + str(self.id) + " sending payload "+str(payload) +" to " + str(recipient_id))
 
     # all of the logic for handling messages happens here
     def receiveMsg(self, sender_id, msg_type, payload):
-        if msg_type == 0: # location
-            logger.debug("Car # " + str(self.id) + " received a message from " + str(sender_id) )
+        if msg_type == 'loc': # location
+            logger.debug("Car # " + str(self.id) + " received location "+str(payload) +" from " + str(sender_id))
+        if msg_type == 'RSA': # road side alert
+            location = payload[0]
+            link = payload[1]
+            lane = payload[2]
+            dist = self._dist(self.position(),location)
+            logger.debug("Car # " + str(self.id) + " received RSA from Agent # " + str(sender_id) + " which is "+str(dist)+" meters away")
+            # if link == self.link:
+            #     logger.debug("Car # " + str(self.id) + " slowing down for RSA on link " + str(self.link) + " which is "+str(dist)+" meters away")
+            #     self.set_desired_speed(self.dspeed-15)
+            #     if lane == self.lane
+            #         if lane >= 3 | lane < 2:
+            #             des_lane = 2
+            #         else:
+            #             des_lane = 1 
+            #         self.vissim.SetAttValue('DesLane',des_lane)
 
 
     def setComms(self,comm):
@@ -196,11 +212,12 @@ class Car:
         self.comms = comm
 
     def setSkill(self,skill_id):
+        logger.debug("Setting skill # "+str(skill_id)+" for car # "+str(self.id))
         flag = 0
         for skill in CAR_SKILLS:
             if skill.id == skill_id:
                 self.comm_type = skill.comm_type
-                self.comm_type = skill.comm_range
+                self.comm_range = skill.comm_range
                 flag = 1
                 # dists = Vissim.Net.DistanceDistribution.GetAll()
                 # for dist in dists:
@@ -215,6 +232,8 @@ class Car:
         #     logger.critical("When setting car # "+str(self.id)+" skills, given distance distribution "+str(skill.dist_distr)+" does not exist in Vissim")
         #     Vissim.Simulation.Stop()
 
+    def RSA(self):
+        return [self.position(), self.link, self.lane]
 
     #######################################################
     """ Helper functions go here
@@ -239,21 +258,21 @@ class Car:
                     cars = temp.GetMultipleAttributes(attributes)
                 except:
                     logger.error("Most likely distance distribution "+str(dist_distr)+" is not setup in Vissim yet. This must be configured before using method 'vissim'")
-            elif method = 'brute':
+            elif method == 'brute':
                 cars = Vissim.Net.Vehicles.GetMultipleAttributes(attributes)
             else:
                 logger.error("method "+str(method)+" not valid. Options are 'vissim' and 'brute'")
                 return close_cars
             
             for i in range(len(cars)):
-                current_car=cars[i]
+                current_car = cars[i]
                 coord_x = float(current_car[1])
                 coord_y = float(current_car[2])
                 dist = self._dist(self.position,[coord_x,coord_y])
                 if dist <= radius:
                     close_cars.append(int(current_car[0]))
 
-        elif scope = 'tracked'
+        elif scope == 'tracked':
             for car in Car.active_cars:
                 dist = self._dist(self.position,car.position) 
                 if dist <= radius:
