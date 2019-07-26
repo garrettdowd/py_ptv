@@ -11,6 +11,25 @@ __version__ = "0.0.1"
 logger = logging.getLogger(__name__)
 Skill = namedtuple('Skill', 'id, comm_type, comm_range')
 # Skill = namedtuple('Skill', 'id, comm_type, dist_distr')
+# [skill_id(DEFINE),[comm_type(DEFINE), comm_range(DEFINE))]]
+SKILLS = [
+    Skill(0,'dsrc',700),
+    Skill(10,'dsrc',500),
+    Skill(20,'dsrc',1000),
+    Skill(100,'bt',200),
+    Skill(200,'cell',500),
+    Skill(300,'web',100000) # 'infinite' range
+]
+# # [skil_id(DEFINE),[comm_type(DEFINE), comm_range_dist(Distance Distribution No)]]
+# SKILLS = [
+#     Skill(0,'dsrc',1),
+#     Skill(10,'dsrc',2),
+#     Skill(20,'dsrc',3),
+#     Skill(100,'bt',50),
+#     Skill(200,'cell',100),
+#     Skill(300,'web',150)
+# ]
+
 
 """ Intended Use Documentation Here
 
@@ -21,36 +40,14 @@ Skill = namedtuple('Skill', 'id, comm_type, comm_range')
 
 def setup(_Vissim, _custom_veh_type_list = [111], _CAR_SKILLS=-1):
     global Vissim # follows naming convention of standard Vissim COM interface
-    global CAR_SKILLS
     global CUSTOM_VEH_TYPES
+    global SKILLS
 
-    if _CAR_SKILLS == -1:
-        # [skill_id(DEFINE),[comm_type(DEFINE), comm_range(DEFINE))]]
-        CAR_SKILLS = [
-            Skill(0,'dsrc',700),
-            Skill(10,'dsrc',500),
-            Skill(20,'dsrc',1000),
-            Skill(100,'bt',200),
-            Skill(200,'cell',500),
-            Skill(300,'web',100000) # 'infinite' range
-        ]
-        # # [skil_id(DEFINE),[comm_type(DEFINE), comm_range_dist(Distance Distribution No)]]
-        # CAR_SKILLS = [
-        #     Skill(0,'dsrc',1),
-        #     Skill(10,'dsrc',2),
-        #     Skill(20,'dsrc',3),
-        #     Skill(100,'bt',50),
-        #     Skill(200,'cell',100),
-        #     Skill(300,'web',150)
-        # ]
-    else:
-        CAR_SKILLS = _CAR_SKILLS
-
-    #################################################################################
-    #################################################################################
+    if _CAR_SKILLS != -1:
+        SKILLS = _CAR_SKILLS
+        
     Vissim = _Vissim
     CUSTOM_VEH_TYPES = _custom_veh_type_list
-
 
 
 def update(): # call at beginning of every loop
@@ -64,10 +61,15 @@ def update(): # call at beginning of every loop
         old_car_nums = [car.id for car in Car.all_cars if car.type==veh_type]
         for num in old_car_nums:
             if num in new_car_nums:
-                new_car_nums.remove(num)
+                # Still some error with .remove(NUM) - NUM DOES NOT EXIST
+                try:
+                    new_car_nums.remove(num)
+                except:
+                    logger.error("Trying to remove new_car_num "+str(num)+" failed")
             else:
                 car = next((car for car in Car.all_cars if car.id==num), None)
-                car.deactivate()
+                if car != None:
+                    car.deactivate()
         for num in new_car_nums:
             Car(num)
 
@@ -113,7 +115,7 @@ class Car:
     def __eq__(self, other):
         return self.id == other.id
 
-    def __init__(self, car_num=0,comm=-1,skill=0,veh_type=100,link=1,lane=1,desired_speed=0):
+    def __init__(self, car_num=0,comm=-1,msg_logic=-1,skill=0,veh_type=111,link=1,lane=1,desired_speed=0):
         logger.debug("Creating a Car object with # "+str(car_num))
         if car_num == 0:
             # Putting a new vehicle in the network:
@@ -149,6 +151,7 @@ class Car:
         self.setComms(comm)
         # copy skills to local variables
         self.setSkill(skill)
+        self.setMsgLogic(msg_logic)
 
 
     def update(self):
@@ -178,33 +181,39 @@ class Car:
     def sendMsg(self, recipient_id=-1, msg_type='loc', payload='null'):
         if self.comms == -1:
             logger.error("Comms was not set up for car with ID "+str(self.id)+" cannot sendMsg()")
-        if (msg_type == 'loc') & (payload == 'null'):
-            payload = self.position()
-        if (msg_type == 'RSA') & (payload == 'null'):
-            payload = [self.position(), self.link, self.lane]
+            return 0
+        if self.m == -1:
+            logger.error("Message logic was not set up for car with ID "+str(self.id)+" cannot sendMsg()")
+            return 0
+        if msg_type not in self.m.msg_types:
+            logger.error("Message type" + str(msg_type )+ "is not a valid type for car with ID "+str(self.id)+", cannot sendMsg()")
+            return 0
+
+        result = self.m.send(self, recipient_id, msg_type, payload)
+
+        recipient_id = result['recipient_id']
+        msg_type = result['msg_type']
+        payload = result['payload']
+
         logger.debug("Car # " + str(self.id) + " sending payload "+str(payload) +" to " + str(recipient_id))
         # default message is broadcast to everyone listening (-1)
         self.comms.broadcast(self.position(), self.comm_range, msg_type, payload, recipient_id, self.id)
+        return 1
 
-    # all of the logic for handling messages happens here
+
     def receiveMsg(self, sender_id, msg_type, payload):
-        if msg_type == 'loc': # location
-            logger.debug("Car # " + str(self.id) + " received location "+str(payload) +" from " + str(sender_id))
-        if msg_type == 'RSA': # road side alert
-            location = payload[0]
-            link = payload[1]
-            lane = payload[2]
-            dist = self._dist(self.position(),location)
-            logger.debug("Car # " + str(self.id) + " received RSA from Agent # " + str(sender_id) + " which is "+str(dist)+" meters away")
-            # if link == self.link:
-            #     logger.debug("Car # " + str(self.id) + " slowing down for RSA on link " + str(self.link) + " which is "+str(dist)+" meters away")
-            #     self.set_desired_speed(self.dspeed-15)
-            #     if lane == self.lane
-            #         if lane >= 3 | lane < 2:
-            #             des_lane = 2
-            #         else:
-            #             des_lane = 1 
-            #         self.vissim.SetAttValue('DesLane',des_lane)
+        if self.comms == -1:
+            logger.error("Comms was not set up for car with ID "+str(self.id)+" cannot receiveMsg()")
+            return 0
+        if self.m == -1:
+            logger.error("Message logic was not set up for car with ID "+str(self.id)+" cannot sendMsg()")
+            return 0
+        if msg_type not in self.m.msg_types:
+            logger.error("Message type" + str(msg_type )+ "is not a valid type for car with ID "+str(self.id)+", cannot receiveMsg()")
+            return 0
+
+        self.m.receive(self, sender_id, msg_type, payload)
+        return 1
 
 
     def setComms(self,comm):
@@ -214,7 +223,7 @@ class Car:
     def setSkill(self,skill_id):
         logger.debug("Setting skill # "+str(skill_id)+" for car # "+str(self.id))
         flag = 0
-        for skill in CAR_SKILLS:
+        for skill in SKILLS:
             if skill.id == skill_id:
                 self.comm_type = skill.comm_type
                 self.comm_range = skill.comm_range
@@ -231,9 +240,12 @@ class Car:
         # elif flagg == 1:
         #     logger.critical("When setting car # "+str(self.id)+" skills, given distance distribution "+str(skill.dist_distr)+" does not exist in Vissim")
         #     Vissim.Simulation.Stop()
+        return 1
 
-    def RSA(self):
-        return [self.position(), self.link, self.lane]
+    def setMsgLogic(self,message_logic_module):
+        logger.debug("Setting message logic for car # "+str(self.id))
+        self.m = message_logic_module
+
 
     #######################################################
     """ Helper functions go here

@@ -57,7 +57,7 @@ class Net:
         else:
             return self.id == other.id
 
-    def __init__(self, tech_type, list_of_lists_of_agents, msg_types=-1, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
+    def __init__(self, tech_type, list_of_lists_of_agents, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
 
         # define a unique id
         if not self.all_nets:
@@ -65,22 +65,6 @@ class Net:
         else:
             max_id = max([net.id for net in self.all_nets])
             self.id = max_id + 1
-
-        if msg_types == -1:
-            # try to conform with SAE J2735 and other applicable standards
-            self.msg_types = {
-                'location': 0,  # [x,y,z] coordinates
-                'BSM':      20,  # [time, message #, location, speed, heading, acceleration]
-                'SPAT':     19,
-                'TIM':      31,  # can be used for a lot of stuff, use ITIS phrases
-                'EVA':      22,  # emergency vehicle alert
-                'ICA':      23,  # intersection collision avoidance
-                'PSM':      32,  # personal safety message, for vulnerable road users
-                'PVD':      26, # probe vehicle data, send data to RSU
-                'RSA':      27, # road side alert
-            }
-        else:
-            self.msg_types = _msg_types
 
         self.type = tech_type
         self.agents = list_of_lists_of_agents
