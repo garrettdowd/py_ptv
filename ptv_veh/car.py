@@ -58,7 +58,7 @@ def update(): # call at beginning of every loop
     # deactivate all out of scope vehicles
     for veh_type in CUSTOM_VEH_TYPES:
         new_car_nums = [int(veh[0]) for veh in all_veh_attributes if int(veh[1])==veh_type]
-        old_car_nums = [car.id for car in Car.all_cars if car.type==veh_type]
+        old_car_nums = [car.id for car in Car.active_cars if car.type==veh_type]
         for num in old_car_nums:
             if num in new_car_nums:
                 # Still some error with .remove(NUM) - NUM DOES NOT EXIST
@@ -67,7 +67,7 @@ def update(): # call at beginning of every loop
                 except:
                     logger.error("Trying to remove new_car_num "+str(num)+" failed")
             else:
-                car = next((car for car in Car.all_cars if car.id==num), None)
+                car = next((car for car in Car.active_cars if car.id==num), None)
                 if car != None:
                     car.deactivate()
         for num in new_car_nums:
@@ -105,6 +105,11 @@ def saveResults(filepath):
     # df = df.iloc[::-1] # reverse order of rows
     df.to_csv(filepath, encoding='utf-8', index=False)
 
+    #Vissim does not sem to close the python interpreter after stopping the simulation.
+    #Therefore we need to clear names/variables that might cause problems when starting a new simulation
+    Car.all_cars=Car.active_cars=Car.new_cars=Car.null_cars=[]
+    # This also means you need to restart Vissim if you made changes to the python files/library
+
 
 class Car:
     all_cars = []
@@ -129,7 +134,7 @@ class Car:
             self.id = int(self.vissim.AttValue('No')) # get vehicle number from vissim
         else: # if car_num != 0
             # Get existing info from vehicle already defined in the network
-            self.id = car_num
+            self.id = int(car_num)
             self.vissim = Vissim.Net.Vehicles.ItemByKey(self.id)
             self.type = int(self.vissim.AttValue('VehType'))
             self.dspeed = float(self.vissim.AttValue('DesSpeed'))
@@ -171,8 +176,14 @@ class Car:
 
     def deactivate(self):
         self.active = 0
-        Car.active_cars.remove(self)
         Car.null_cars.append(self)
+        # Car.active_cars.remove(self)
+        if self in Car.active_cars:
+            Car.active_cars.remove(self)
+        else:
+            logger.error("Trying to remove car "+str(self.id)+" from active_cars failed")
+            active_ids = [car.id for car in Car.active_cars]
+            logger.error("Active IDs are "+str(active_ids))
 
     #######################################################
     """ Communication functions go here
