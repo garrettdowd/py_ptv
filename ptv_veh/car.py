@@ -9,6 +9,9 @@ __version__ = "0.0.1"
 
 
 logger = logging.getLogger(__name__)
+
+ATTRIBUTES = ['No','VehType','CoordFront', 'CoordRear','Lane\Link\No', 'Lane\Index', 'DestLane', 'Lane\Link\NumLanes','Length','DesSpeed','Speed', 'Acceleration','DistTravTot','LeadTargNo','LeadTargType','Hdwy','RoutDecNo', 'RouteNo','Occup']
+
 Skill = namedtuple('Skill', 'id, comm_type, comm_range')
 # Skill = namedtuple('Skill', 'id, comm_type, dist_distr')
 # [skill_id(DEFINE),[comm_type(DEFINE), comm_range(DEFINE))]]
@@ -53,19 +56,25 @@ def setup(_Vissim, _custom_veh_type_list = [111], _CAR_SKILLS=-1):
 def update(): # call at beginning of every loop
     Car.null_cars = []
     Car.new_cars = []
+    Car.all_vissim_cars = []
 
-    all_veh_attributes = Vissim.Net.Vehicles.GetMultipleAttributes(('No', 'VehType'))
+    global TIME
+    TIME = float(Vissim.Simulation.AttValue('SimSec'))
+    all_vissim_cars = Vissim.Net.Vehicles.GetMultipleAttributes(ATTRIBUTES)
+    
+    # Convert to dictionary and parse any strings
+    for car in all_vissim_cars:
+        Car.all_vissim_cars.append({key:car[i] for i,key in enumerate(ATTRIBUTES)})
+        Car.all_vissim_cars[-1]['CoordFront'] = _parse_coord(Car.all_vissim_cars[-1]['CoordFront'])
+        Car.all_vissim_cars[-1]['CoordRear'] = _parse_coord(Car.all_vissim_cars[-1]['CoordRear'])
+
     # deactivate all out of scope vehicles
     for veh_type in CUSTOM_VEH_TYPES:
-        new_car_nums = [int(veh[0]) for veh in all_veh_attributes if int(veh[1])==veh_type]
+        new_car_nums = [int(veh['No']) for veh in Car.all_vissim_cars if int(veh['VehType'])==veh_type]
         old_car_nums = [car.id for car in Car.active_cars if car.type==veh_type]
         for num in old_car_nums:
             if num in new_car_nums:
-                # Still some error with .remove(NUM) - NUM DOES NOT EXIST
-                try:
-                    new_car_nums.remove(num)
-                except:
-                    logger.error("Trying to remove new_car_num "+str(num)+" failed")
+                new_car_nums.remove(num)
             else:
                 car = next((car for car in Car.active_cars if car.id==num), None)
                 if car != None:
@@ -74,7 +83,7 @@ def update(): # call at beginning of every loop
             Car(num)
 
     for car in Car.all_cars:
-        car.update()
+        car.update('master') # for speed it might be better to get all attributes at once and then sort that info to the correct object
 
 def getCars():
     cars = dict()
@@ -107,7 +116,7 @@ def saveResults(filepath):
 
     #Vissim does not sem to close the python interpreter after stopping the simulation.
     #Therefore we need to clear names/variables that might cause problems when starting a new simulation
-    Car.all_cars=Car.active_cars=Car.new_cars=Car.null_cars=[]
+    # Car.all_cars=Car.active_cars=Car.new_cars=Car.null_cars=[]
     # This also means you need to restart Vissim if you made changes to the python files/library
 
 
@@ -116,6 +125,7 @@ class Car:
     active_cars = []
     new_cars = []
     null_cars = []
+    all_vissim_cars = []
 
     def __eq__(self, other):
         return self.id == other.id
@@ -135,44 +145,72 @@ class Car:
         else: # if car_num != 0
             # Get existing info from vehicle already defined in the network
             self.id = int(car_num)
-            self.vissim = Vissim.Net.Vehicles.ItemByKey(self.id)
+            self.vissim = Vissim.Net.Vehicles.ItemByKey(self.id) # For IVehicle Attributes
             self.type = int(self.vissim.AttValue('VehType'))
-            self.dspeed = float(self.vissim.AttValue('DesSpeed'))
-            linklane = self.vissim.AttValue('Lane')
-            self.link = int(linklane.split("-")[0])
-            self.lane = int(linklane.split("-")[1])
-            self.speed = float(self.vissim.AttValue('Speed'))
+
+        self.vissim_type = Vissim.Net.VehicleTypes.ItemByKey(self.type) # For IVehicleType attributes
+        self.capacity = int(self.vissim_type.AttValue('Capacity'))
+
+        self.position = lambda: [self.x[-1],self.y[-1]] # current position
+        self.active = 1 # is this object currently active in the simulation?
 
         Car.all_cars.append(self) # add to list of all cars
         Car.active_cars.append(self)
         Car.new_cars.append(self)
-        # initialize time and position
-        self.time = [float(Vissim.Simulation.AttValue('SimSec'))]
-        self.x = [float(self.vissim.AttValue('CoordFrontX'))]
-        self.y = [float(self.vissim.AttValue('CoordFrontY'))]
-        self.position = lambda: [self.x[-1],self.y[-1]] # current position
-        self.active = 1 # is this object currently active in the simulation?
 
+        # initialize all lists
+        self.time = []
+        self.x = []
+        self.y = []
+        
+        self.update('master')
         self.setComms(comm)
-        # copy skills to local variables
         self.setSkill(skill)
         self.setMsgLogic(msg_logic)
 
 
-    def update(self):
+    def update(self, update_type):
         if self.active:
-            # get data from VISSIM
-            self.dspeed = float(self.vissim.AttValue('DesSpeed'))
-            linklane = self.vissim.AttValue('Lane')
-            self.link = int(linklane.split("-")[0])
-            self.lane = int(linklane.split("-")[1])
-            self.speed = float(self.vissim.AttValue('Speed'))
-            self.time.append(float(Vissim.Simulation.AttValue('SimSec')))
-            self.x.append(float(self.vissim.AttValue('CoordFrontX')))
-            self.y.append(float(self.vissim.AttValue('CoordFrontY')))
-            return 1
-        else:
-            return 0
+            if update_type == 'master':
+                # get data from VISSIM
+                car = next((car for car in Car.all_vissim_cars if car['No']==self.id), None)
+                if car != None:
+                    self.dspeed = float(car['DesSpeed'])
+                    self.link = int(car['Lane\Link\No'])
+                    self.lane = int(car['Lane\Index'])
+                    self.speed = float(car['Speed'])
+                    self.time.append(TIME)
+                    self.x.append(float(car['CoordFront'][0]))
+                    self.y.append(float(car['CoordFront'][1]))
+                    if car['Occup'] != None:
+                        self.occupancy = int(car['Occup'])
+                    else:
+                        self.occupancy = -1
+                    if car['LeadTargNo'] != None:
+                        self.lead_object_num = int(car['LeadTargNo'])
+                    else:
+                        self.lead_object_num = -1
+                    self.lead_object_type = car['LeadTargType']
+                    return 1
+                else:
+                    logger.critical("Car # "+str(self.id)+" does not exist in network. Cannot update()")
+
+            elif update_type == 'self':
+                self.dspeed = float(self.vissim.AttValue('DesSpeed'))
+                linklane = self.vissim.AttValue('Lane')
+                self.link = int(linklane.split("-")[0])
+                self.lane = int(linklane.split("-")[1])
+                self.speed = float(self.vissim.AttValue('Speed'))
+                self.time.append(float(Vissim.Simulation.AttValue('SimSec')))
+                self.x.append(float(self.vissim.AttValue('CoordFrontX')))
+                self.y.append(float(self.vissim.AttValue('CoordFrontY')))
+                self.occupancy = int(self.vissim.AttValue('Occup'))
+                self.lead_object_num = int(self.vissim.AttValue('LeadTargNo'))
+                self.lead_object_type = self.vissim.AttValue('LeadTargType')
+                return 1
+
+            else:
+                return 0
 
     def deactivate(self):
         self.active = 0
@@ -266,6 +304,8 @@ class Car:
         front_car = []
         cars = self.get_car_radius(max_dist)
 
+        # Possibly compare Hdwy or FollowDist to get_car_radius to match correct car
+        #InteractTargNo,InteractTargType
 
     """ Returns car id numbers within specified radius
 
@@ -274,7 +314,6 @@ class Car:
         close_cars = []
 
         if scope == 'all':
-            attributes = ('No','CoordFrontX','CoordFrontY')
             if method == 'vissim':
                 try:
                     temp = Vissim.Net.Vehicles.GetByLocation(self.x[-1], self.y[-1], dist_distr) # limited by using predefined distance distribution
@@ -320,6 +359,8 @@ class Car:
             loc2.append(0)
 
         return (loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2 + (loc1[2] - loc2[2])**2 
+
+
     #######################################################
     """ Wrapper functions go here
     
@@ -329,3 +370,16 @@ class Car:
 
     def move_to_link(self, link_number, lane_number=0, link_coordinate=0):
         self.vissim.MoveToLinkPosition(link_number, lane_number, link_coordinate)
+
+    # def send_to_parking_lot(self)
+
+
+def _parse_coord(coord_string):
+    # Adapted from Vissim Platooning example
+    # converts a Coordinates string with seperated values from PTV Vissim to a list of float
+    # Example: from input string '-514.485 -294.097 0.000' to output list of floats: [-514.485, -294.097, 0.000]
+    if not coord_string:
+        listCoordinates = [] # if the string is empty '' or None, an empty list is returned
+    else:
+        listCoordinates = map(float, coord_string.split(' ')) # from '-514.485 -294.097 0.000' split first to ['-514.485', '-294.097', '0.000'] and than to integer: [-514.485, -294.097, 0.000]
+    return listCoordinates
