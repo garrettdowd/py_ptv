@@ -1,3 +1,5 @@
+import os
+import datetime as dt
 import logging
 from collections import namedtuple
 import pandas as pd
@@ -13,8 +15,6 @@ logger = logging.getLogger(__name__)
 ATTRIBUTES = ['No','VehType','CoordFront', 'CoordRear','Lane\Link\No', 'Lane\Index', 'DestLane', 'Lane\Link\NumLanes','Length','DesSpeed','Speed', 'Acceleration','DistTravTot','LeadTargNo','LeadTargType','Hdwy','RoutDecNo', 'RouteNo','Occup']
 
 Skill = namedtuple('Skill', 'id, comm_type, comm_range')
-# Skill = namedtuple('Skill', 'id, comm_type, dist_distr')
-# [skill_id(DEFINE),[comm_type(DEFINE), comm_range(DEFINE))]]
 SKILLS = [
     Skill(0,'dsrc',700),
     Skill(10,'dsrc',500),
@@ -23,7 +23,7 @@ SKILLS = [
     Skill(200,'cell',500),
     Skill(300,'web',100000) # 'infinite' range
 ]
-# # [skil_id(DEFINE),[comm_type(DEFINE), comm_range_dist(Distance Distribution No)]]
+# Skill = namedtuple('Skill', 'id, comm_type, dist_distr')
 # SKILLS = [
 #     Skill(0,'dsrc',1),
 #     Skill(10,'dsrc',2),
@@ -41,16 +41,19 @@ SKILLS = [
 
 """
 
-def setup(_Vissim, _custom_veh_type_list = [111], _CAR_SKILLS=-1):
+def setup(_Vissim, _RESULTS_DIR, _custom_veh_type_list, _CAR_ATTRIBUTES=ATTRIBUTES, _CAR_SKILLS=SKILLS):
     global Vissim # follows naming convention of standard Vissim COM interface
+    global RESULTS_DIR
     global CUSTOM_VEH_TYPES
+    global ATTRIBUTES
     global SKILLS
 
-    if _CAR_SKILLS != -1:
-        SKILLS = _CAR_SKILLS
+    ATTRIBUTES = _CAR_ATTRIBUTES
+    SKILLS - _CAR_SKILLS
         
     Vissim = _Vissim
     CUSTOM_VEH_TYPES = _custom_veh_type_list
+    RESULTS_DIR = _RESULTS_DIR
 
 
 def update(): # call at beginning of every loop
@@ -62,11 +65,13 @@ def update(): # call at beginning of every loop
     TIME = float(Vissim.Simulation.AttValue('SimSec'))
     all_vissim_cars = Vissim.Net.Vehicles.GetMultipleAttributes(ATTRIBUTES)
     
-    # Convert to dictionary and parse any strings
+    # Convert to dictionary and parse any strings (make this robust to changes in attributes)
     for car in all_vissim_cars:
         Car.all_vissim_cars.append({key:car[i] for i,key in enumerate(ATTRIBUTES)})
-        Car.all_vissim_cars[-1]['CoordFront'] = _parse_coord(Car.all_vissim_cars[-1]['CoordFront'])
-        Car.all_vissim_cars[-1]['CoordRear'] = _parse_coord(Car.all_vissim_cars[-1]['CoordRear'])
+        if 'CoordFront' in ATTRIBUTES:
+            Car.all_vissim_cars[-1]['CoordFront'] = _parse_coord(Car.all_vissim_cars[-1]['CoordFront'])
+        if 'CoordRear' in ATTRIBUTES:
+            Car.all_vissim_cars[-1]['CoordRear'] = _parse_coord(Car.all_vissim_cars[-1]['CoordRear'])
 
     # deactivate all out of scope vehicles
     for veh_type in CUSTOM_VEH_TYPES:
@@ -83,7 +88,7 @@ def update(): # call at beginning of every loop
             Car(num)
 
     for car in Car.all_cars:
-        car.update('master') # for speed it might be better to get all attributes at once and then sort that info to the correct object
+        car.update('master')
 
 def getCars():
     cars = dict()
@@ -93,8 +98,16 @@ def getCars():
     cars['null'] = Car.null_cars
     return cars
 
-def saveResults(filepath):
+def saveResults(filepath=RESULTS_DIR):
     logger.info("Saving Car Results")
+
+    # make sure that the necessary folder structure exists
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR)
+    if not os.path.exists(RESULTS_DIR+"\\Data"):
+        os.makedirs(RESULTS_DIR+"\\Data")
+    # if not os.path.exists(RESULTS_DIR+"\\Video"):
+    #     os.makedirs(RESULTS_DIR+"\\Video")
 
     column_cars = ['carID', 'time', 'x', 'y']
 
@@ -175,22 +188,24 @@ class Car:
                 # get data from VISSIM
                 car = next((car for car in Car.all_vissim_cars if car['No']==self.id), None)
                 if car != None:
-                    self.dspeed = float(car['DesSpeed'])
-                    self.link = int(car['Lane\Link\No'])
-                    self.lane = int(car['Lane\Index'])
-                    self.speed = float(car['Speed'])
                     self.time.append(TIME)
                     self.x.append(float(car['CoordFront'][0]))
                     self.y.append(float(car['CoordFront'][1]))
-                    if car['Occup'] != None:
-                        self.occupancy = int(car['Occup'])
-                    else:
-                        self.occupancy = -1
+                    self.link = int(car['Lane\Link\No'])
+                    self.lane = int(car['Lane\Index'])
+                    self.route_num = int(car['RouteNo'])
+                    self.route_decision_num = int(car['RoutDecNo'])
+                    self.dspeed = float(car['DesSpeed'])
+                    self.speed = float(car['Speed'])
+                    self.headway = float(car['Hdwy'])
+                    self.occupancy = int(car['Occup'])
+                    self.total_distance = float(car['DistTravTot'])
+
                     if car['LeadTargNo'] != None:
                         self.lead_object_num = int(car['LeadTargNo'])
                     else:
                         self.lead_object_num = -1
-                    self.lead_object_type = car['LeadTargType']
+                    self.lead_object_type = car['LeadTargType'] # NONE, VEHICLE, SIGNALHEAD, CONFLICTAREA, STOPSIGN, REDUCEDSPEEDAREA
                     return 1
                 else:
                     logger.critical("Car # "+str(self.id)+" does not exist in network. Cannot update()")
@@ -206,7 +221,7 @@ class Car:
                 self.y.append(float(self.vissim.AttValue('CoordFrontY')))
                 self.occupancy = int(self.vissim.AttValue('Occup'))
                 self.lead_object_num = int(self.vissim.AttValue('LeadTargNo'))
-                self.lead_object_type = self.vissim.AttValue('LeadTargType')
+                self.lead_object_type = self.vissim.AttValue('LeadTargType') # NONE, VEHICLE, SIGNALHEAD, CONFLICTAREA, STOPSIGN, REDUCEDSPEEDAREA
                 return 1
 
             else:
@@ -291,9 +306,9 @@ class Car:
         #     Vissim.Simulation.Stop()
         return 1
 
-    def setMsgLogic(self,message_logic_module):
-        logger.debug("Setting message logic for car # "+str(self.id))
-        self.m = message_logic_module
+    def setMessageHandler(self,message_handler):
+        logger.debug("Setting message handler for car # "+str(self.id))
+        self.m = message_handler
 
 
     #######################################################
@@ -301,11 +316,13 @@ class Car:
 
     """
     def get_car_front(self,max_dist=300):
-        front_car = []
-        cars = self.get_car_radius(max_dist)
-
-        # Possibly compare Hdwy or FollowDist to get_car_radius to match correct car
-        #InteractTargNo,InteractTargType
+        front_car = None
+        if self.lead_object_type == 'VEHICLE':
+            car = next((car for car in Car.all_vissim_cars if car['No']==self.lead_object_num), None)
+                if car != None:
+                    front_car = car['No']
+                else:
+                    logger.error("Couldn't get front vehicle")
 
     """ Returns car id numbers within specified radius
 
@@ -314,29 +331,20 @@ class Car:
         close_cars = []
 
         if scope == 'all':
-            if method == 'vissim':
-                try:
-                    temp = Vissim.Net.Vehicles.GetByLocation(self.x[-1], self.y[-1], dist_distr) # limited by using predefined distance distribution
-                    cars = temp.GetMultipleAttributes(attributes)
-                except:
-                    logger.error("Most likely distance distribution "+str(dist_distr)+" is not setup in Vissim yet. This must be configured before using method 'vissim'")
-            elif method == 'brute':
-                cars = Vissim.Net.Vehicles.GetMultipleAttributes(attributes)
+            if method == 'brute':
+                pass
             else:
-                logger.error("method "+str(method)+" not valid. Options are 'vissim' and 'brute'")
+                logger.error("method "+str(method)+" not valid. Options are 'brute' and")
                 return close_cars
             
-            for i in range(len(cars)):
-                current_car = cars[i]
-                coord_x = float(current_car[1])
-                coord_y = float(current_car[2])
-                dist = self._dist(self.position,[coord_x,coord_y])
+            for car in Car.all_vissim_cars:
+                dist = self._dist(self.position(),car['CoordFront'])
                 if dist <= radius:
-                    close_cars.append(int(current_car[0]))
+                    close_cars.append(car['No'])
 
         elif scope == 'tracked':
             for car in Car.active_cars:
-                dist = self._dist(self.position,car.position) 
+                dist = self._dist(self.position(),car.position()) 
                 if dist <= radius:
                     close_cars.append(car.id)
         

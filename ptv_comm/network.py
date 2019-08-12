@@ -21,11 +21,13 @@ Message = namedtuple('Message', 'timestamp, sender_id, recipient_id, msg_type, p
     Agents must have a unique "id" property - agent.id
 """
 
-def setup(_Vissim):
+def setup(_Vissim, _RESULTS_DIR):
     global Vissim # follows naming convention of standard Vissim COM interface
+    global RESULTS_DIR
     global SIM_RES
 
     Vissim = _Vissim
+    RESULTS_DIR = _RESULTS_DIR
     SIM_RES = Vissim.Simulation.AttValue('SimRes')
     
 
@@ -161,7 +163,15 @@ class Net:
 
 
 
-def saveResults(filepath):
+def saveResults(filepath=RESULTS_DIR):
+    # make sure that the necessary folder structure exists
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR)
+    if not os.path.exists(RESULTS_DIR+"\\Data"):
+        os.makedirs(RESULTS_DIR+"\\Data")
+    # if not os.path.exists(RESULTS_DIR+"\\Video"):
+    #     os.makedirs(RESULTS_DIR+"\\Video")
+
     column_comms = ['timestamp', 'sender_id', 'recipient_id', 'msg_type', 'payload', 'delay', 'dropped']
     df = []
     for net in Net.all_nets:
