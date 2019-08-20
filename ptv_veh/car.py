@@ -14,7 +14,10 @@ logger = logging.getLogger(__name__)
 
 ATTRIBUTES = ['No','VehType','CoordFront', 'CoordRear','Lane\Link\No', 'Lane\Index', 'DestLane', 'Lane\Link\NumLanes','Length','DesSpeed','Speed', 'Acceleration','DistTravTot','LeadTargNo','LeadTargType','Hdwy','RoutDecNo', 'RouteNo','Occup']
 
-Skill = namedtuple('Skill', 'id, comm_type, comm_range')
+class Skill(namedtuple('Skill', ['id, comm_type, comm_range'])):
+	def __eq__(self, other):
+        return self.id == other.id
+
 SKILLS = [
     Skill(0,'dsrc',700),
     Skill(10,'dsrc',500),
@@ -41,15 +44,20 @@ SKILLS = [
 
 """
 
-def setup(_Vissim, _RESULTS_DIR, _custom_veh_type_list, _CAR_ATTRIBUTES=ATTRIBUTES, _CAR_SKILLS=SKILLS):
+def setup(_Vissim, _RESULTS_DIR, _custom_veh_type_list, car_attributes=ATTRIBUTES, car_skills=SKILLS):
     global Vissim # follows naming convention of standard Vissim COM interface
     global RESULTS_DIR
     global CUSTOM_VEH_TYPES
     global ATTRIBUTES
     global SKILLS
 
-    ATTRIBUTES = _CAR_ATTRIBUTES
-    SKILLS - _CAR_SKILLS
+    ATTRIBUTES = car_attributes
+    for new_skill in car_skills:
+    	if new_skill in SKILLS:
+    		idx = SKILLS.index(new_skill)
+    		SKILLS[idx] = new_skill
+    	else:
+    		SKILLS.append(new_skill)
         
     Vissim = _Vissim
     CUSTOM_VEH_TYPES = _custom_veh_type_list
@@ -143,7 +151,7 @@ class Car:
     def __eq__(self, other):
         return self.id == other.id
 
-    def __init__(self, car_num=0,comm=-1,msg_logic=-1,skill=0,veh_type=111,link=1,lane=1,desired_speed=0):
+    def __init__(self, car_num=0,comm=-1,msg_handler=-1,skill=0,veh_type=111,link=1,lane=1,desired_speed=0):
         logger.debug("Creating a Car object with # "+str(car_num))
         if car_num == 0:
             # Putting a new vehicle in the network:
@@ -179,7 +187,7 @@ class Car:
         self.update('master')
         self.setComms(comm)
         self.setSkill(skill)
-        self.setMsgLogic(msg_logic)
+        self.setMsgHandler(msg_handler)
 
 
     def update(self, update_type):
@@ -286,27 +294,19 @@ class Car:
 
     def setSkill(self,skill_id):
         logger.debug("Setting skill # "+str(skill_id)+" for car # "+str(self.id))
-        flag = 0
-        for skill in SKILLS:
-            if skill.id == skill_id:
-                self.comm_type = skill.comm_type
-                self.comm_range = skill.comm_range
-                flag = 1
-                # dists = Vissim.Net.DistanceDistribution.GetAll()
-                # for dist in dists:
-                #     if int(dist.AttValue('No')) == skill.dist_distr
-                #         self.comm_range = int(dist.AttValue('UpperBound'))
-                #         flag = 2
-                
-        if flag == 0:
-            logger.critical("When setting car # "+str(self.id)+" skills, given skill "+str(skill_id)+" does not exist")
+        def setSkill(self,skill_id):
+        # copy skills to local variables
+        skill = next([skill for skill in SKILLS if skill.id == skill_id])
+        if skill:
+            self.comm_type = skill.comm_type
+            self.comm_range = skill.comm_range
+            return 1
+        else:
+            logger.critical("When instantiating a Car object, given skill #"+str(skill_id)+" does not exist")
             Vissim.Simulation.Stop()
-        # elif flagg == 1:
-        #     logger.critical("When setting car # "+str(self.id)+" skills, given distance distribution "+str(skill.dist_distr)+" does not exist in Vissim")
-        #     Vissim.Simulation.Stop()
-        return 1
+            return 0
 
-    def setMessageHandler(self,message_handler):
+    def setMsgHandler(self,message_handler):
         logger.debug("Setting message handler for car # "+str(self.id))
         self.m = message_handler
 
