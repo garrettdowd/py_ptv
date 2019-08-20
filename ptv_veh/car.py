@@ -294,7 +294,6 @@ class Car:
 
     def setSkill(self,skill_id):
         logger.debug("Setting skill # "+str(skill_id)+" for car # "+str(self.id))
-        def setSkill(self,skill_id):
         # copy skills to local variables
         skill = next([skill for skill in SKILLS if skill.id == skill_id])
         if skill:
