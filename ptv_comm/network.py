@@ -1,3 +1,4 @@
+import os
 import logging
 from collections import namedtuple
 import random
@@ -54,10 +55,11 @@ class Net:
     all_nets = []
 
     def __eq__(self, other):
-        if other == -1:
-            return False
-        else:
+        if other:
             return self.id == other.id
+        else:
+            return False
+
 
     def __init__(self, tech_type, list_of_lists_of_agents, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
 
@@ -163,15 +165,17 @@ class Net:
 
 
 
-def saveResults(filepath=RESULTS_DIR):
+def saveResults(filepath=None):
     # make sure that the necessary folder structure exists
-    if not os.path.exists(RESULTS_DIR):
-        os.makedirs(RESULTS_DIR)
-    if not os.path.exists(RESULTS_DIR+"\\Data"):
-        os.makedirs(RESULTS_DIR+"\\Data")
-    # if not os.path.exists(RESULTS_DIR+"\\Video"):
-    #     os.makedirs(RESULTS_DIR+"\\Video")
+    if filepath == None:
+        filepath = RESULTS_DIR
+    # make sure that the necessary folder structure exists
+    file_dir = os.path.dirname(filepath)
+    if not os.path.exists(file_dir):
+        logger.debug("Creating directory "+file_dir)
+        os.makedirs(file_dir)
 
+    logger.info("saving network results to "+filepath)
     column_comms = ['timestamp', 'sender_id', 'recipient_id', 'msg_type', 'payload', 'delay', 'dropped']
     df = []
     for net in Net.all_nets:

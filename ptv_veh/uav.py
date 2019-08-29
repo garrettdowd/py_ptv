@@ -1,5 +1,9 @@
-import datetime as dt
+import os
 import math
+import datetime as dt
+import logging
+from collections import namedtuple
+import pandas as pd
 
 __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
@@ -8,11 +12,12 @@ __version__ = "0.0.1"
 
 logger = logging.getLogger(__name__)
 
-class Skill(namedtuple('Skill', ['id, min_speed, max_speed, max_acc, max_ascent, max_descent, comm_range'])):
+class Skill(namedtuple('Skill', 'id, min_speed, max_speed, max_acc, max_ascent, max_descent, comm_range')):
     def __eq__(self, other):
         return self.id == other.id
 
 SKILLS = [
+    Skill(0, 0, 35, 3.5, 5, 2, 1000),
     Skill(10, 0, 19.9, 4, 5, 3, 800),
     Skill(20, 0, 45, 4, 5, 3, 800),
     Skill(100, 15.2, 39, 4, 5, 3, 900)
@@ -28,87 +33,110 @@ CAMERA_PARAM = {
     'ResY': 480,
     'Framerate': 20,
 }
+DEFAULT = {
+    'comms': None,
+    'msg_handler': None,
+    'model_flag': False,
+    'camera_flag': False,
+    'skill': 0,
+    'position': [0,0,0],
+    'sim_freq': 20 # multiple of 10
+}
+""" Intended Use Documentation Here
+3D Models and cameras must be created before the start of simulation so the code had to be structured to accomodate that requirement
+3D Models can really slow down the simulation speed (by half)
 
-def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, num_cameras=0, uav_skills=SKILLS, _camera_param=CAMERA_PARAM):
+
+"""
+def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, num_cameras=0, defaults=None, uav_skills=None, camera_param=None):
     global Vissim
     global RESULTS_DIR
     global SKILLS
     global CAMERA_PARAM
+    global TIME
+    global DEFAULT
 
     Vissim = _Vissim
     RESULTS_DIR = _RESULTS_DIR
-    # make sure that the necessary folder structure exists
-    if not os.path.exists(RESULTS_DIR):
-        os.makedirs(RESULTS_DIR)
 
-    for new_skill in uav_skills:
-        if new_skill in SKILLS:
-            idx = SKILLS.index(new_skill)
-            SKILLS[idx] = new_skill
-        else:
-            SKILLS.append(new_skill)
+    if uav_skills != None:
+        for new_skill in uav_skills:
+            if new_skill in SKILLS:
+                idx = SKILLS.index(new_skill)
+                SKILLS[idx] = new_skill
+            else:
+                SKILLS.append(new_skill)
 
+    if camera_param != None:
+        for param in camera_param:
+            CAMERA_PARAM[param] = camera_param[param]
 
+    if defaults != None:
+        for default in defaults:
+            DEFAULT[default] = defaults[default]
+
+    TIME = float(Vissim.Simulation.AttValue('SimSec'))
     # cannot create static models during simulation 
     # so must create a predefined number before simulation starts
     # define uav models
 
     # Create new stuff based on definitions above
-    for i in range(num_models):
-        Vissim.Net.Static3DModels.AddStatic3DModel(0, model_filepath, 'Point(0, 0, -100)')
-    models = Vissim.Net.Static3DModels.GetAll()
-    for model in models:
-        model.SetAttValue('CoordX', 0)
-        model.SetAttValue('CoordY', 0)
-        model.SetAttValue('CoordZOffset', -100) # Set below ground level to keep out of view
-        model.SetAttValue('Scale', model_scale)
-    # Modify data structure so we can record which models are being used
-    for model in models:
-        Model(model)
+    if num_models > 0:
+        for i in range(num_models):
+            Vissim.Net.Static3DModels.AddStatic3DModel(0, model_filepath, 'Point(0, 0, 0)')
+        models = Vissim.Net.Static3DModels.GetAll()
+        for model in models:
+            model.SetAttValue('CoordX', 0)
+            model.SetAttValue('CoordY', 0)
+            model.SetAttValue('CoordZOffset', -100)
+            model.SetAttValue('Scale', model_scale)
+            Model(model)
+            
 
-    for i in range(num_cameras):
-        Vissim.Net.CameraPositions.AddCameraPosition(0, 'Point(0, 0, -100)') # add one camera for each uav
-        Vissim.Net.Storyboards.AddStoryboard(0) # add one storyboard for each uav
-    cameras = Vissim.Net.CameraPositions.GetAll()
-    for camera in cameras:
-        camera.SetAttValue('CoordX', 0)
-        camera.SetAttValue('CoordY', 0)
-        camera.SetAttValue('CoordZ', -100)
-        camera.SetAttValue('FOV', CAMERA_PARAM['FOV'])
-        camera.SetAttValue('PitchAngle', CAMERA_PARAM['PitchAngle'])
-        camera.SetAttValue('RollAngle', CAMERA_PARAM['RollAngle'])
-        camera.SetAttValue('YawAngle', CAMERA_PARAM['YawAngle'])
-    storyboards = Vissim.Net.Storyboards.GetAll()
-    i = 0 # to name the video files
-    for i,storyboard in enumerate(storyboards):
-        storyboard.SetAttValue('Filename', _RESULTS_DIR+"Camera "+str(i)+".avi")
-        storyboard.SetAttValue('RecAVI', CAMERA_PARAM['RecAVI']) # create AVI file
-        storyboard.SetAttValue('ShowPrev', CAMERA_PARAM['ShowPrev']) # show preview of camera during sim
-        storyboard.SetAttValue('Resolution', 1) # specify user defined resolution. Must do this to specify x,y res
-        storyboard.SetAttValue('ResX', CAMERA_PARAM['ResX'])
-        storyboard.SetAttValue('ResY', CAMERA_PARAM['ResY'])
-        storyboard.SetAttValue('Framerate', CAMERA_PARAM['Framerate'])
-        storyboard.Keyframes.AddKeyframe(0)
-        keyframes = storyboards[i].Keyframes.GetAll()
-        for keyframe in keyframes:
-            keyframe.SetAttValue('CamPos', cameras[i])
-            keyframe.SetAttValue('StartTime', 1) # StartTime == 0 means that recording must be manually started from presentation tab
-            keyframe.SetAttValue('DwellTime', 600)
-    for camera in cameras:
-        Camera(camera)
+    if num_cameras > 0:
+        for i in range(num_cameras):
+            Vissim.Net.CameraPositions.AddCameraPosition(0, 'Point(0, 0, 0)') 
+            Vissim.Net.Storyboards.AddStoryboard(0)
+        cameras = Vissim.Net.CameraPositions.GetAll()
+        for camera in cameras:
+            camera.SetAttValue('CoordX', 0)
+            camera.SetAttValue('CoordY', 0)
+            camera.SetAttValue('CoordZ', -100)
+            camera.SetAttValue('FOV', CAMERA_PARAM['FOV'])
+            camera.SetAttValue('PitchAngle', CAMERA_PARAM['PitchAngle'])
+            camera.SetAttValue('RollAngle', CAMERA_PARAM['RollAngle'])
+            camera.SetAttValue('YawAngle', CAMERA_PARAM['YawAngle'])
+            Camera(camera)
+        storyboards = Vissim.Net.Storyboards.GetAll()
+        i = 0 # to name the video files
+        for i,storyboard in enumerate(storyboards):
+            storyboard.SetAttValue('Filename', _RESULTS_DIR+"Camera "+str(i)+".avi")
+            storyboard.SetAttValue('RecAVI', CAMERA_PARAM['RecAVI']) # create AVI file
+            storyboard.SetAttValue('ShowPrev', CAMERA_PARAM['ShowPrev']) # show preview of camera during sim
+            storyboard.SetAttValue('Resolution', 1) # specify user defined resolution. Must do this to specify x,y res
+            storyboard.SetAttValue('ResX', CAMERA_PARAM['ResX'])
+            storyboard.SetAttValue('ResY', CAMERA_PARAM['ResY'])
+            storyboard.SetAttValue('Framerate', CAMERA_PARAM['Framerate'])
+            storyboard.Keyframes.AddKeyframe(0)
+            keyframes = storyboards[i].Keyframes.GetAll()
+            for keyframe in keyframes:
+                keyframe.SetAttValue('CamPos', cameras[i])
+                keyframe.SetAttValue('StartTime', 1) # StartTime == 0 means that recording must be manually started from presentation tab
+                keyframe.SetAttValue('DwellTime', 600)
+            
 
 
 def update(): # call at beginning of every loop
     global TIME
     TIME = float(Vissim.Simulation.AttValue('SimSec'))
 
-    for uav in active_uavs:
+    for uav in UAV.active_uavs:
         uav.update()
 
-    for model in [model for model in Model.all_models if model.agent != None]:
+    for model in Model.active_models:
         model.update()
 
-    for camera in [camera for camera in Camera.all_cameras if camera.agent != None]:
+    for camera in Camera.active_cameras:
         camera.update()
 
 def getUAVs():
@@ -117,12 +145,17 @@ def getUAVs():
     uavs['active'] = UAV.active_uavs
     return uavs
 
-def saveResults(filepath=RESULTS_DIR):
-    logger.info("Saving UAV Results")
+def saveResults(filepath=None):
     # make sure that the necessary folder structure exists
-    if not os.path.exists(filepath):
-        os.makedirs(filepath)
+    if filepath == None:
+        filepath = RESULTS_DIR
+    # make sure that the necessary folder structure exists
+    file_dir = os.path.dirname(filepath)
+    if not os.path.exists(file_dir):
+        logger.debug("Creating directory "+file_dir)
+        os.makedirs(file_dir)
 
+    logger.info("Saving UAV Results to "+filepath)
     column_uav = ['uavID', 'time', 'x', 'y', 'z']
 
     df = []
@@ -152,17 +185,34 @@ class UAV:
     active_uavs = []
 
     def __eq__(self, other):
-        return self.id == other.id
+        if other:
+            return self.id == other.id
+        else:
+            return False
 
     # define what happens when an uav object is instatiated
-    def __init__(self, _comms=None, msg_handler=None, model_flag=0, camera_flag=0, skill=20, pos=[0,0,-100]):
+    def __init__(self, comms=None, msg_handler=None, model_flag=None, camera_flag=None, skill=None, pos=None, sim_frequency=None):
+        if comms == None:
+            comms = DEFAULT['comms']
+        if msg_handler == None:
+            msg_handler = DEFAULT['msg_handler']
+        if model_flag == None:
+            model_flag = DEFAULT['model_flag']
+        if camera_flag == None:
+            camera_flag = DEFAULT['camera_flag']
+        if skill == None:
+            skill = DEFAULT['skill']
+        if pos == None:
+            pos = DEFAULT['position']
+        if sim_frequency == None:
+            sim_frequency = DEFAULT['sim_freq']
+
         # define a unique id
         if not self.all_uavs:
             self.id = 0
         else:
             max_id = max([uav.id for uav in self.all_uavs])
             self.id = max_id + 1
-
         if len(pos) != 3:
             logger.critical("UAV instantiation, invalid position: "+ str(pos))
             Vissim.Simulation.Stop()
@@ -172,27 +222,28 @@ class UAV:
         self.z = [pos[2]]
         self.position = lambda: [self.x[-1],self.y[-1],self.z[-1]] # current position
 
-        self.dest = [[0,0,0]] # destination. where uav should be flying to
+        self.dest = [[pos[0],pos[1],pos[2]]] # destination. where uav should be flying to
         self.mission = 0 # defines what the uav should be doing e.g. car following = 1, stationary point = 0.
 
         UAV.all_uavs.append(self)
         UAV.active_uavs.append(self)
-        self.active = 1 # is this object currently active in the simulation?
+        self.active = True # is this object currently active in the simulation?
 
+        self.model3D = None
+        self.camera = None
         if camera_flag:
             self._addCamera()
-            self._updateCamera()
 
         if model_flag:
             self._add3D()
-            self._update3D()
 
-        self.setComms(_comms) # Comm object
+        self.setComms(comms) # Comm object
         self.setMsgHandler(msg_handler)
         self.setSkill(skill)
 
         ##########################################################
         self.sim = dict()
+        self.sim['freq'] = sim_frequency
 
     def update(self):
         if self.mission == 'car':
@@ -203,7 +254,7 @@ class UAV:
 
 
     def deactivate(self):
-        self.active = 0
+        self.active = False
         if self in UAV.active_uavs:
             UAV.active_uavs.remove(self)
         else:
@@ -213,13 +264,16 @@ class UAV:
         self._remove3D()
         self._removeCamera()
 
-        self._tracking_flag = 0
         # self.model3D.SetAttValue('CoordX',0)
         # self.model3D.SetAttValue('CoordY',0)
         # self.model3D.SetAttValue('CoordZOffset',500)
 
     def setDest(self, xyz):
-        if len(xyz) != 3:
+        if len(xyz) == 2:
+            xyz.append(30) # default altitude, need better default value
+        elif len(xyz) == 3:
+            pass
+        else:
             logger.critical("Invalid input to setDest- " + str(xyz))
             Vissim.Simulation.Stop()
 
@@ -232,7 +286,6 @@ class UAV:
         self.car = car
         self.mission = 'car' # actively track vehicle, possibly fly ahead to scout
         self.follow_altitude = follow_altitude
-        self._tracking_flag = 0
 
 
 
@@ -265,10 +318,10 @@ class UAV:
 
 
     def receiveMsg(self, sender_id, msg_type, payload):
-        if self.comms == None:
+        if not self.comms:
             logger.error("Comms was not set up for UAV with ID "+str(self.id)+" cannot receiveMsg()")
             return 0
-        if self.m == None:
+        if not self.m:
             logger.error("Message logic was not set up for UAV with ID "+str(self.id)+" cannot sendMsg()")
             return 0
         if msg_type not in self.m.msg_types:
@@ -285,7 +338,7 @@ class UAV:
     def setSkill(self,skill_id):
         logger.debug("Setting skill # "+str(skill_id)+" for UAV # "+str(self.id))
         # copy skills to local variables
-        skill = next([skill for skill in SKILLS if skill.id == skill_id])
+        skill = next((skill for skill in SKILLS if skill.id == skill_id),None)
         if skill:
             self.min_speed = skill.min_speed
             self.max_speed = skill.max_speed
@@ -305,12 +358,15 @@ class UAV:
     ##############################################################################
     #############################################################################
 
-    def _simXYZ(self, sim_type, sim_freq=100):
+    def _simXYZ(self, sim_type, sim_freq=None):
+        if not sim_freq:
+            sim_freq = self.sim['freq']
+
         dt = (TIME - self.time[-1])
-        time_steps = DT*sim_freq
+        time_steps = int(dt*sim_freq)
 
         if len(self.x)<2:
-            self.sim['time'] = []
+            self.sim['time'] = [0]
             self.sim['x'] = self.x
             self.sim['xd'] = [0]
             self.sim['y'] = self.y
@@ -318,19 +374,25 @@ class UAV:
             self.sim['z'] = self.z
             self.sim['zd'] = [0]
             self.sim['xyzd'] = [0]
+            self.sim['xyzdd'] = [0]
 
             self.sim['err_mag'] = []
             self.sim['err_dir'] = []
 
         for i in range(time_steps):
-            self.sim['time'].append(self.sim['time'][-1] + 1/sim_freq)
+            # self.sim['time'].append(self.sim['time'][-1] + 1/sim_freq)
             err_x = self.dest[-1][0] - self.sim['x'][-1]
             err_y = self.dest[-1][1] - self.sim['y'][-1]
             err_z = self.dest[-1][2] - self.sim['z'][-1]
             error_magnitude = (err_x**2 + err_y**2 + err_z**2)**0.5
-            error_direction = [err_x/error_magnitude, err_y/error_magnitude, err_z/error_magnitude]
-            self.sim['err_mag'].append(error_magnitude)
-            self.sim['err_dir'].append(error_direction)
+            if error_magnitude != 0:
+                error_direction = [err_x/error_magnitude, err_y/error_magnitude, err_z/error_magnitude]
+            else:
+                error_direction = [0,0,0]
+            self.sim['err_mag'] = [error_magnitude]
+            self.sim['err_dir'] = [error_direction]
+            # self.sim['err_mag'].append(error_magnitude)
+            # self.sim['err_dir'].append(error_direction)
             # if len(self.x)<3:
             #     if len(self.x)==2:
             #         accx = speedx/dt
@@ -354,22 +416,29 @@ class UAV:
                 # zero order model with velocity/acceleration saturation. uav will fly in direction defined by the distance error vector
 
                 # saturation
-                desired_acc = self.sim['err_mag'][-1]*sim_freq**2
+                desired_acc = self.sim['err_mag'][-1]*(sim_freq**2)
                 if desired_acc > self.max_acc:
                     desired_acc = self.max_acc
-                self.sim['xyzdd'].append(desired_acc)
+                # self.sim['xyzdd'].append(desired_acc)
                 desired_vel = desired_acc*sim_freq + self.sim['xyzd'][-1]
                 if desired_vel > self.max_speed:
                     desired_vel = self.max_speed
-                self.sim['xyzd'].append(desired_vel)
+                self.sim['xyzd'][-1] = desired_vel
+                # self.sim['xyzd'].append(desired_vel)
 
                 # calc new position
-                self.sim['xd'].append(desired_vel * error_direction[0])
-                self.sim['x'].append(self.sim['xd'] * 1/sim_freq + self.sim['x'][-1])
-                self.sim['yd'].append(desired_vel * error_direction[0])
-                self.sim['y'].append(self.sim['yd'] * 1/sim_freq + self.sim['y'][-1])
-                self.sim['zd'].append(desired_vel * error_direction[0])
-                self.sim['z'].append(self.sim['zd'] * 1/sim_freq + self.sim['z'][-1])
+                self.sim['xd'] = [desired_vel * error_direction[0]]
+                self.sim['x'] = [self.sim['xd'][-1] * 1/sim_freq + self.sim['x'][-1]]
+                self.sim['yd'] = [desired_vel * error_direction[1]]
+                self.sim['y'] = [self.sim['yd'][-1] * 1/sim_freq + self.sim['y'][-1]]
+                self.sim['zd'] = [desired_vel * error_direction[2]]
+                self.sim['z'] = [self.sim['zd'][-1] * 1/sim_freq + self.sim['z'][-1]]
+                # self.sim['xd'].append(desired_vel * error_direction[0])
+                # self.sim['x'].append(self.sim['xd'][-1] * 1/sim_freq + self.sim['x'][-1])
+                # self.sim['yd'].append(desired_vel * error_direction[1])
+                # self.sim['y'].append(self.sim['yd'][-1] * 1/sim_freq + self.sim['y'][-1])
+                # self.sim['zd'].append(desired_vel * error_direction[2])
+                # self.sim['z'].append(self.sim['zd'][-1] * 1/sim_freq + self.sim['z'][-1])
 
 
             elif sim_type == "FO":
@@ -496,8 +565,8 @@ class UAV:
     #     return result
 
     def _add3D(self):
-        if self.model3D == None:
-            model = next([model for model in Model.all_models if model.agent == None], None)
+        if not self.model3D:
+            model = next((model for model in Model.all_models if model.agent == None), None)
             if model:
                 model.assign(self)
                 self.model3D = model
@@ -508,7 +577,7 @@ class UAV:
             logger.error("Model already assigned to UAV #"+str(self.id))
 
     def _remove3D(self):
-        if self.model3D != None:
+        if self.model3D:
             self.model3D.unassign()
             self.model3D = None
         else:
@@ -516,9 +585,9 @@ class UAV:
 
     
     def _addCamera(self):
-        if self.camera == None:
-            cam = next([camera for camera in Camera.all_cameras if camera.agent == None], None)
-            if cam
+        if not self.camera:
+            cam = next((camera for camera in Camera.all_cameras if camera.agent == None), None)
+            if cam:
                 camera.assign(self)
                 self.camera = cam
             else:
@@ -526,13 +595,14 @@ class UAV:
                 logger.error("No cameras currently available to assign to UAV #"+str(self.id))
 
     def _removeCamera(self):
-        if self.camera != None:
+        if self.camera:
             self.camera.unassign()
             self.camera = None
 
 
 class Model:
     all_models = []
+    active_models = []
 
     def __eq__(self, other):
         return self.id == other.id
@@ -550,20 +620,24 @@ class Model:
     def assign(self,agent):
         if self.agent == None:
             self.agent = agent
+            Model.active_models.append(self)
         else:
             logger.error("Model already assigned to agent with ID #"+str(agent.id))
 
-    def unassign(self,agent):
+    def unassign(self):
         if self.agent != None:
             self.agent = None
+            Model.active_models.remove(self)
         else:
             logger.error("Model not assigned to agent with ID #"+str(agent.id))
 
-    def update(self,agent):
+    def update(self):
         if self.agent != None:
-            self.model.SetAttValue('CoordX',agent.x[-1])
-            self.model.SetAttValue('CoordY',agent.y[-1])
-            self.model.SetAttValue('CoordZOffset',agent.z[-1])
+            point = "Point(" + str(self.agent.x[-1]) + ", " + str(self.agent.y[-1]) + ", " + str(self.agent.z[-1]) + ")"
+            self.model.SetAttValue('CoordWktPoint3D', point)
+            # self.model.SetAttValue('CoordX',self.agent.x[-1])
+            # self.model.SetAttValue('CoordY',self.agent.y[-1])
+            # self.model.SetAttValue('CoordZOffset',self.agent.z[-1])
         else:
             logger.error("Model not assigned to agent with ID #"+str(agent.id))
 
@@ -571,6 +645,7 @@ class Model:
 
 class Camera:
     all_cameras = []
+    active_cameras = []
 
     def __eq__(self, other):
         return self.id == other.id
@@ -589,19 +664,23 @@ class Camera:
     def assign(self,agent):
         if self.agent == None:
             self.agent = agent
+            Camera.active_cameras.append(self)
         else:
             logger.error("Camera already assigned to agent with ID #"+str(agent.id))
 
     def unassign(self):
         if self.agent != None:
             self.agent = None
+            Camera.active_cameras.remove(self)
         else:
             logger.error("Camera not assigned to agent with ID #"+str(agent.id))
 
     def update(self):
         if self.agent != None:
-            self.camera.SetAttValue('CoordX',agent.x[-1])
-            self.camera.SetAttValue('CoordY',agent.y[-1])
-            self.camera.SetAttValue('CoordZ',agent.z[-1])
+            point = "Point(" + str(self.agent.x[-1]) + ", " + str(self.agent.y[-1]) + ", " + str(self.agent.z[-1]) + ")"
+            self.model.SetAttValue('CoordWktPoint3D', point)
+            # self.camera.SetAttValue('CoordX',self.agent.x[-1])
+            # self.camera.SetAttValue('CoordY',self.agent.y[-1])
+            # self.camera.SetAttValue('CoordZ',self.agent.z[-1])
         else:
             logger.error("Camera not assigned to agent with ID #"+str(agent.id))

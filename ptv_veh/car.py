@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 ATTRIBUTES = ['No','VehType','CoordFront', 'CoordRear','Lane\Link\No', 'Lane\Index', 'DestLane', 'Lane\Link\NumLanes','Length','DesSpeed','Speed', 'Acceleration','DistTravTot','LeadTargNo','LeadTargType','Hdwy','RoutDecNo', 'RouteNo','Occup']
 
-class Skill(namedtuple('Skill', ['id, comm_type, comm_range'])):
-	def __eq__(self, other):
+class Skill(namedtuple('Skill', 'id, comm_type, comm_range')):
+    def __eq__(self, other):
         return self.id == other.id
 
 SKILLS = [
@@ -26,17 +26,15 @@ SKILLS = [
     Skill(200,'cell',500),
     Skill(300,'web',100000) # 'infinite' range
 ]
-# Skill = namedtuple('Skill', 'id, comm_type, dist_distr')
-# SKILLS = [
-#     Skill(0,'dsrc',1),
-#     Skill(10,'dsrc',2),
-#     Skill(20,'dsrc',3),
-#     Skill(100,'bt',50),
-#     Skill(200,'cell',100),
-#     Skill(300,'web',150)
-# ]
-
-
+DEFAULT = {
+    'comms': None,
+    'msg_handler': None,
+    'skill': 0,
+    'veh_type': 111,
+    'link': 1,
+    'lane': 1,
+    'desired_speed': 0
+}
 """ Intended Use Documentation Here
 
 
@@ -44,25 +42,33 @@ SKILLS = [
 
 """
 
-def setup(_Vissim, _RESULTS_DIR, _custom_veh_type_list, car_attributes=ATTRIBUTES, car_skills=SKILLS):
+def setup(_Vissim, _RESULTS_DIR, _custom_veh_type_list, defaults=None, car_attributes=None, car_skills=None):
     global Vissim # follows naming convention of standard Vissim COM interface
     global RESULTS_DIR
     global CUSTOM_VEH_TYPES
     global ATTRIBUTES
     global SKILLS
+    global TIME
+    global DEFAULT
 
-    ATTRIBUTES = car_attributes
-    for new_skill in car_skills:
-    	if new_skill in SKILLS:
-    		idx = SKILLS.index(new_skill)
-    		SKILLS[idx] = new_skill
-    	else:
-    		SKILLS.append(new_skill)
-        
     Vissim = _Vissim
     CUSTOM_VEH_TYPES = _custom_veh_type_list
     RESULTS_DIR = _RESULTS_DIR
 
+    if car_attributes != None:
+        ATTRIBUTES = car_attributes
+    if car_skills != None:
+        for new_skill in car_skills:
+            if new_skill in SKILLS:
+                idx = SKILLS.index(new_skill)
+                SKILLS[idx] = new_skill
+            else:
+                SKILLS.append(new_skill)
+    if defaults != None:
+        for default in defaults:
+            DEFAULT[default] = defaults[default]
+
+    TIME = float(Vissim.Simulation.AttValue('SimSec'))
 
 def update(): # call at beginning of every loop
     Car.null_cars = []
@@ -106,17 +112,16 @@ def getCars():
     cars['null'] = Car.null_cars
     return cars
 
-def saveResults(filepath=RESULTS_DIR):
-    logger.info("Saving Car Results")
-
+def saveResults(filepath=None):
+    if filepath == None:
+        filepath = RESULTS_DIR
     # make sure that the necessary folder structure exists
-    if not os.path.exists(RESULTS_DIR):
-        os.makedirs(RESULTS_DIR)
-    if not os.path.exists(RESULTS_DIR+"\\Data"):
-        os.makedirs(RESULTS_DIR+"\\Data")
-    # if not os.path.exists(RESULTS_DIR+"\\Video"):
-    #     os.makedirs(RESULTS_DIR+"\\Video")
+    file_dir = os.path.dirname(filepath)
+    if not os.path.exists(file_dir):
+        logger.debug("Creating directory "+file_dir)
+        os.makedirs(file_dir)
 
+    logger.info("Saving Car Results to "+filepath)
     column_cars = ['carID', 'time', 'x', 'y']
 
     df = []
@@ -135,7 +140,7 @@ def saveResults(filepath=RESULTS_DIR):
     # df = df.iloc[::-1] # reverse order of rows
     df.to_csv(filepath, encoding='utf-8', index=False)
 
-    #Vissim does not sem to close the python interpreter after stopping the simulation.
+    #Vissim does not seem to close the python interpreter after stopping the simulation.
     #Therefore we need to clear names/variables that might cause problems when starting a new simulation
     # Car.all_cars=Car.active_cars=Car.new_cars=Car.null_cars=[]
     # This also means you need to restart Vissim if you made changes to the python files/library
@@ -149,11 +154,29 @@ class Car:
     all_vissim_cars = []
 
     def __eq__(self, other):
-        return self.id == other.id
+        if other:
+            return self.id == other.id
+        else:
+            return False
 
-    def __init__(self, car_num=0,comm=-1,msg_handler=-1,skill=0,veh_type=111,link=1,lane=1,desired_speed=0):
+    def __init__(self, car_num=None,comms=None,msg_handler=None,skill=None,veh_type=None,link=None,lane=None,desired_speed=None):
+        if comms == None:
+            comms = DEFAULT['comms']
+        if msg_handler == None:
+            msg_handler = DEFAULT['msg_handler']
+        if skill == None:
+            skill = DEFAULT['skill']
+        if veh_type == None:
+            veh_type = DEFAULT['veh_type']
+        if link == None:
+            link = DEFAULT['link']
+        if lane == None:
+            lane = DEFAULT['lane']
+        if desired_speed == None:
+            desired_speed = DEFAULT['desired_speed']
+
         logger.debug("Creating a Car object with # "+str(car_num))
-        if car_num == 0:
+        if car_num == None:
             # Putting a new vehicle in the network:
             self.type = veh_type
             self.dspeed = desired_speed # unit according to the user setting in Vissim [km/h or mph]
@@ -161,7 +184,7 @@ class Car:
             self.lane = lane
             start_pos = 0 # unit according to the user setting in Vissim [m or ft]
             interaction = True # optional boolean, should vehicle interact with other vehicles and such?
-            self.vissim = Vissim.Net.Vehicles.AddVehicleAtLinkPosition( self.type, self.link, self.lane, start_pos, self.dspeed, interaction)
+            self.vissim = Vissim.Net.Vehicles.AddVehicleAtLinkPosition(self.type, self.link, self.lane, start_pos, self.dspeed, interaction)
             self.id = int(self.vissim.AttValue('No')) # get vehicle number from vissim
         else: # if car_num != 0
             # Get existing info from vehicle already defined in the network
@@ -185,7 +208,7 @@ class Car:
         self.y = []
         
         self.update('master')
-        self.setComms(comm)
+        self.setComms(comms)
         self.setSkill(skill)
         self.setMsgHandler(msg_handler)
 
@@ -197,22 +220,18 @@ class Car:
                 car = next((car for car in Car.all_vissim_cars if car['No']==self.id), None)
                 if car != None:
                     self.time.append(TIME)
-                    self.x.append(float(car['CoordFront'][0]))
-                    self.y.append(float(car['CoordFront'][1]))
-                    self.link = int(car['Lane\Link\No'])
-                    self.lane = int(car['Lane\Index'])
-                    self.route_num = int(car['RouteNo'])
-                    self.route_decision_num = int(car['RoutDecNo'])
-                    self.dspeed = float(car['DesSpeed'])
-                    self.speed = float(car['Speed'])
-                    self.headway = float(car['Hdwy'])
-                    self.occupancy = int(car['Occup'])
-                    self.total_distance = float(car['DistTravTot'])
-
-                    if car['LeadTargNo'] != None:
-                        self.lead_object_num = int(car['LeadTargNo'])
-                    else:
-                        self.lead_object_num = -1
+                    self.x.append(_none_check(car['CoordFront'][0],'float'))
+                    self.y.append(_none_check(car['CoordFront'][1],'float'))
+                    self.link = _none_check(car['Lane\Link\No'],'int')
+                    self.lane = _none_check(car['Lane\Index'],'int')
+                    self.route_num = _none_check(car['RouteNo'],'int')
+                    self.route_decision_num = _none_check(car['RoutDecNo'],'int')
+                    self.dspeed = _none_check(car['DesSpeed'],'float')
+                    self.speed = _none_check(car['Speed'],'float')
+                    self.headway = _none_check(car['Hdwy'],'float')
+                    self.occupancy = _none_check(car['Occup'],'int')
+                    self.total_distance = _none_check(car['DistTravTot'],'float')
+                    self.lead_object_num = _none_check(car['LeadTargNo'],'int')
                     self.lead_object_type = car['LeadTargType'] # NONE, VEHICLE, SIGNALHEAD, CONFLICTAREA, STOPSIGN, REDUCEDSPEEDAREA
                     return 1
                 else:
@@ -251,10 +270,10 @@ class Car:
 
     """
     def sendMsg(self, recipient_id=-1, msg_type='loc', payload='null'):
-        if self.comms == -1:
+        if self.comms == None:
             logger.error("Comms was not set up for car with ID "+str(self.id)+" cannot sendMsg()")
             return 0
-        if self.m == -1:
+        if self.m == None:
             logger.error("Message logic was not set up for car with ID "+str(self.id)+" cannot sendMsg()")
             return 0
         if msg_type not in self.m.msg_types:
@@ -274,10 +293,10 @@ class Car:
 
 
     def receiveMsg(self, sender_id, msg_type, payload):
-        if self.comms == -1:
+        if self.comms == None:
             logger.error("Comms was not set up for car with ID "+str(self.id)+" cannot receiveMsg()")
             return 0
-        if self.m == -1:
+        if self.m == None:
             logger.error("Message logic was not set up for car with ID "+str(self.id)+" cannot sendMsg()")
             return 0
         if msg_type not in self.m.msg_types:
@@ -288,14 +307,14 @@ class Car:
         return 1
 
 
-    def setComms(self,comm):
+    def setComms(self,comms):
         logger.debug("Setting comms for car # "+str(self.id))
-        self.comms = comm
+        self.comms = comms
 
     def setSkill(self,skill_id):
         logger.debug("Setting skill # "+str(skill_id)+" for car # "+str(self.id))
         # copy skills to local variables
-        skill = next([skill for skill in SKILLS if skill.id == skill_id])
+        skill = next((skill for skill in SKILLS if skill.id == skill_id),None)
         if skill:
             self.comm_type = skill.comm_type
             self.comm_range = skill.comm_range
@@ -318,10 +337,10 @@ class Car:
         front_car = None
         if self.lead_object_type == 'VEHICLE':
             car = next((car for car in Car.all_vissim_cars if car['No']==self.lead_object_num), None)
-                if car != None:
-                    front_car = car['No']
-                else:
-                    logger.error("Couldn't get front vehicle")
+            if car != None:
+                front_car = car['No']
+            else:
+                logger.error("Couldn't get front vehicle")
 
     """ Returns car id numbers within specified radius
 
@@ -390,3 +409,14 @@ def _parse_coord(coord_string):
     else:
         listCoordinates = map(float, coord_string.split(' ')) # from '-514.485 -294.097 0.000' split first to ['-514.485', '-294.097', '0.000'] and than to integer: [-514.485, -294.097, 0.000]
     return listCoordinates
+
+def _none_check(vissim_attribute, attrib_type):
+    # Vissim COM returns values as strings and if the value does not exist it will return a NoneType.
+    # This functions makes it easier to both convert to the correct type while safeguarding against converting NoneType
+    if vissim_attribute != None:
+        if attrib_type == 'int':
+            return int(vissim_attribute)
+        elif attrib_type == 'float':
+            return float(vissim_attribute)
+    else:
+        return None
