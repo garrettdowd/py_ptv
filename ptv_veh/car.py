@@ -6,17 +6,20 @@ import pandas as pd
 
 __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
-__license__ = "MIT"
+__license__ = "MPL-2.0"
 __version__ = "0.0.1"
 
 
 logger = logging.getLogger(__name__)
 
-ATTRIBUTES = ['No','VehType','CoordFront', 'CoordRear','Lane\Link\No', 'Lane\Index', 'DestLane', 'Lane\Link\NumLanes','Length','DesSpeed','Speed', 'Acceleration','DistTravTot','LeadTargNo','LeadTargType','Hdwy','RoutDecNo', 'RouteNo','Occup']
-
 class Skill(namedtuple('Skill', 'id, comm_type, comm_range')):
     def __eq__(self, other):
         return self.id == other.id
+
+######################
+# DEFAULTS
+######################
+ATTRIBUTES = ['No','VehType','CoordFront', 'CoordRear','Lane\Link\No', 'Lane\Index', 'DestLane', 'Lane\Link\NumLanes','Length','DesSpeed','Speed', 'Acceleration','DistTravTot','LeadTargNo','LeadTargType','Hdwy','RoutDecNo', 'RouteNo','Occup']
 
 SKILLS = [
     Skill(0,'dsrc',700),
@@ -35,6 +38,9 @@ DEFAULT = {
     'lane': 1,
     'desired_speed': 0
 }
+######################
+# /DEFAULTS
+######################
 """ Intended Use Documentation Here
 
 

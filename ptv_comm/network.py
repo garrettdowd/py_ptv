@@ -6,7 +6,7 @@ import pandas as pd
 
 __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
-__license__ = "MIT"
+__license__ = "MPL-2.0"
 __version__ = "0.0.1"
 
 
