@@ -40,7 +40,8 @@ DEFAULT = {
     'camera_flag': False,
     'skill': 0,
     'position': [0,0,0],
-    'sim_freq': 20 # multiple of 10
+    'sim_type': "ZO",
+    'sim_mult': 2
 }
 """ Intended Use Documentation Here
 3D Models and cameras must be created before the start of simulation so the code had to be structured to accomodate that requirement
@@ -76,11 +77,11 @@ def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, nu
             DEFAULT[default] = defaults[default]
 
     TIME = float(Vissim.Simulation.AttValue('SimSec'))
+    
     # cannot create static models during simulation 
     # so must create a predefined number before simulation starts
     # define uav models
-
-    # Create new stuff based on definitions above
+    # may need to erase previous 3D models, need some logic to only delete UAV models and not other models
     if num_models > 0:
         for i in range(num_models):
             Vissim.Net.Static3DModels.AddStatic3DModel(0, model_filepath, 'Point(0, 0, 0)')
@@ -92,7 +93,7 @@ def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, nu
             model.SetAttValue('Scale', model_scale)
             Model(model)
             
-
+    # may need to delete all existing cameras and storyboards
     if num_cameras > 0:
         for i in range(num_cameras):
             Vissim.Net.CameraPositions.AddCameraPosition(0, 'Point(0, 0, 0)') 
@@ -110,7 +111,7 @@ def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, nu
         storyboards = Vissim.Net.Storyboards.GetAll()
         i = 0 # to name the video files
         for i,storyboard in enumerate(storyboards):
-            storyboard.SetAttValue('Filename', _RESULTS_DIR+"Camera "+str(i)+".avi")
+            storyboard.SetAttValue('Filename', RESULTS_DIR+"Camera "+str(i)+".avi")
             storyboard.SetAttValue('RecAVI', CAMERA_PARAM['RecAVI']) # create AVI file
             storyboard.SetAttValue('ShowPrev', CAMERA_PARAM['ShowPrev']) # show preview of camera during sim
             storyboard.SetAttValue('Resolution', 1) # specify user defined resolution. Must do this to specify x,y res
@@ -118,7 +119,7 @@ def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, nu
             storyboard.SetAttValue('ResY', CAMERA_PARAM['ResY'])
             storyboard.SetAttValue('Framerate', CAMERA_PARAM['Framerate'])
             storyboard.Keyframes.AddKeyframe(0)
-            keyframes = storyboards[i].Keyframes.GetAll()
+            keyframes = storyboard.Keyframes.GetAll()
             for keyframe in keyframes:
                 keyframe.SetAttValue('CamPos', cameras[i])
                 keyframe.SetAttValue('StartTime', 1) # StartTime == 0 means that recording must be manually started from presentation tab
@@ -126,7 +127,7 @@ def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, nu
             
 
 
-def update(): # call at beginning of every loop
+def update(model_update_rate=1, camera_update_rate=1): # call at beginning of every loop
     global TIME
     TIME = float(Vissim.Simulation.AttValue('SimSec'))
 
@@ -134,10 +135,10 @@ def update(): # call at beginning of every loop
         uav.update()
 
     for model in Model.active_models:
-        model.update()
+        model.update(model_update_rate)
 
     for camera in Camera.active_cameras:
-        camera.update()
+        camera.update(camera_update_rate)
 
 def getUAVs():
     uavs = dict()
@@ -191,7 +192,7 @@ class UAV:
             return False
 
     # define what happens when an uav object is instatiated
-    def __init__(self, comms=None, msg_handler=None, model_flag=None, camera_flag=None, skill=None, pos=None, sim_frequency=None):
+    def __init__(self, comms=None, msg_handler=None, model_flag=None, camera_flag=None, skill=None, pos=None, sim_type=None, sim_mult=None):
         if comms == None:
             comms = DEFAULT['comms']
         if msg_handler == None:
@@ -204,8 +205,10 @@ class UAV:
             skill = DEFAULT['skill']
         if pos == None:
             pos = DEFAULT['position']
-        if sim_frequency == None:
-            sim_frequency = DEFAULT['sim_freq']
+        if sim_type == None:
+            sim_type = DEFAULT['sim_type']
+        if sim_mult == None:
+            sim_mult = DEFAULT['sim_mult']
 
         # define a unique id
         if not self.all_uavs:
@@ -223,10 +226,10 @@ class UAV:
         self.position = lambda: [self.x[-1],self.y[-1],self.z[-1]] # current position
 
         self.dest = [[pos[0],pos[1],pos[2]]] # destination. where uav should be flying to
+        self.car = None
+        self.default_altitude = 50
         self.mission = 0 # defines what the uav should be doing e.g. car following = 1, stationary point = 0.
 
-        UAV.all_uavs.append(self)
-        UAV.active_uavs.append(self)
         self.active = True # is this object currently active in the simulation?
 
         self.model3D = None
@@ -241,16 +244,19 @@ class UAV:
         self.setMsgHandler(msg_handler)
         self.setSkill(skill)
 
+        UAV.all_uavs.append(self)
+        UAV.active_uavs.append(self)
         ##########################################################
         self.sim = dict()
-        self.sim['freq'] = sim_frequency
+        self.sim['type'] = sim_type
+        self.sim['mult'] = sim_mult
 
     def update(self):
-        if self.mission == 'car':
+        if self.mission == 'car_follow':
             xy = self.car.position()
-            xyz = xy.append(self.follow_altitude)
-            self.dest.append(xyz)
-        self._simXYZ("ZO")
+            self.setDest(xy)
+            logger.debug('UAV with ID# '+str(self.id)+' following car. Current car location is ' + str(xy))
+        self._simXYZ()
 
 
     def deactivate(self):
@@ -269,23 +275,30 @@ class UAV:
         # self.model3D.SetAttValue('CoordZOffset',500)
 
     def setDest(self, xyz):
-        if len(xyz) == 2:
-            xyz.append(30) # default altitude, need better default value
+        if xyz == None:
+            logger.error('Invalid Input - Input is None type')
+        elif len(xyz) == 2:
+            xyz.append(self.default_altitude)
         elif len(xyz) == 3:
             pass
         else:
             logger.critical("Invalid input to setDest- " + str(xyz))
             Vissim.Simulation.Stop()
+        
+        if self.dest[-1] != xyz:
+            self.dest.append(xyz)
 
-        self.dest.append(xyz)
-        # self.mission = 0 # go to point and stay there
-        # self._tracking_flag = 0
 
-
-    def setCar(self, car, follow_altitude=40):
-        self.car = car
-        self.mission = 'car' # actively track vehicle, possibly fly ahead to scout
-        self.follow_altitude = follow_altitude
+    def setCar(self, car, default_altitude=40):
+        if self.car != car:
+            self.car = car
+            if self.car == None:
+                logger.info('Cancelling car following for UAV with ID# '+str(self.id))
+                self.mission == 'hold'
+            else:
+                logger.info('Setting UAV with ID# '+str(self.id)+' to follow car with ID# ' + str(car.id))
+                self.mission = 'car_follow' # actively track vehicle, possibly fly ahead to scout
+                self.default_altitude = default_altitude
 
 
 
@@ -332,11 +345,11 @@ class UAV:
         return 1
 
     def setComms(self,comm):
-        logger.debug("Setting comms for UAV # "+str(self.id))
+        logger.info("Setting comms for UAV # "+str(self.id))
         self.comms = comm
 
     def setSkill(self,skill_id):
-        logger.debug("Setting skill # "+str(skill_id)+" for UAV # "+str(self.id))
+        logger.info("Setting skill # "+str(skill_id)+" for UAV # "+str(self.id))
         # copy skills to local variables
         skill = next((skill for skill in SKILLS if skill.id == skill_id),None)
         if skill:
@@ -358,12 +371,16 @@ class UAV:
     ##############################################################################
     #############################################################################
 
-    def _simXYZ(self, sim_type, sim_freq=None):
-        if not sim_freq:
-            sim_freq = self.sim['freq']
+    def _simXYZ(self, sim_type=None, sim_mult=None):
+        if not sim_type:
+            sim_type = self.sim['type']
+
+        if not sim_mult:
+            sim_mult = self.sim['mult']
 
         dt = (TIME - self.time[-1])
-        time_steps = int(dt*sim_freq)
+        time_steps = int(sim_mult)
+        sim_freq = sim_mult/dt
 
         if len(self.x)<2:
             self.sim['time'] = [0]
@@ -588,7 +605,7 @@ class UAV:
         if not self.camera:
             cam = next((camera for camera in Camera.all_cameras if camera.agent == None), None)
             if cam:
-                camera.assign(self)
+                cam.assign(self)
                 self.camera = cam
             else:
                 self.camera = None
@@ -610,6 +627,7 @@ class Model:
     def __init__(self,model):
         self.model = model
         self.agent = None
+        self.update_rate = 1
         if not self.all_models:
             self.id = 0
         else:
@@ -631,13 +649,22 @@ class Model:
         else:
             logger.error("Model not assigned to agent with ID #"+str(agent.id))
 
-    def update(self):
+    def update(self, update_rate):
+        # update_rate = 1 means the model will update every time step. update_rate= 2 will update every two time steps
+        if update_rate != self.update_rate:
+            self.update_rate = update_rate
+            self.update_counter = 1
+
         if self.agent != None:
-            point = "Point(" + str(self.agent.x[-1]) + ", " + str(self.agent.y[-1]) + ", " + str(self.agent.z[-1]) + ")"
-            self.model.SetAttValue('CoordWktPoint3D', point)
-            # self.model.SetAttValue('CoordX',self.agent.x[-1])
-            # self.model.SetAttValue('CoordY',self.agent.y[-1])
-            # self.model.SetAttValue('CoordZOffset',self.agent.z[-1])
+            if self.update_counter/self.update_rate >= 1:
+                point = "Point(" + str(self.agent.x[-1]) + ", " + str(self.agent.y[-1]) + ", " + str(self.agent.z[-1]) + ")"
+                self.model.SetAttValue('CoordWktPoint3D', point)
+                # self.model.SetAttValue('CoordX',self.agent.x[-1])
+                # self.model.SetAttValue('CoordY',self.agent.y[-1])
+                # self.model.SetAttValue('CoordZOffset',self.agent.z[-1])
+                self.update_counter = 1
+            else:
+                self.update_counter += 1
         else:
             logger.error("Model not assigned to agent with ID #"+str(agent.id))
 
@@ -653,6 +680,7 @@ class Camera:
     def __init__(self,camera):
         self.camera = camera
         self.agent = None
+        self.update_rate = 1
         # define a unique id
         if not self.all_cameras:
             self.id = 0
@@ -675,12 +703,21 @@ class Camera:
         else:
             logger.error("Camera not assigned to agent with ID #"+str(agent.id))
 
-    def update(self):
+    def update(self, update_rate):
+        # update_rate = 1 means the model will update every time step. update_rate= 2 will update every two time steps
+        if update_rate != self.update_rate:
+            self.update_rate = update_rate
+            self.update_counter = 1
+
         if self.agent != None:
-            point = "Point(" + str(self.agent.x[-1]) + ", " + str(self.agent.y[-1]) + ", " + str(self.agent.z[-1]) + ")"
-            self.model.SetAttValue('CoordWktPoint3D', point)
-            # self.camera.SetAttValue('CoordX',self.agent.x[-1])
-            # self.camera.SetAttValue('CoordY',self.agent.y[-1])
-            # self.camera.SetAttValue('CoordZ',self.agent.z[-1])
+            if self.update_counter/self.update_rate >= 1:
+                point = "Point(" + str(self.agent.x[-1]) + ", " + str(self.agent.y[-1]) + ", " + str(self.agent.z[-1]) + ")"
+                self.camera.SetAttValue('CoordWktPoint3D', point)
+                # self.camera.SetAttValue('CoordX',self.agent.x[-1])
+                # self.camera.SetAttValue('CoordY',self.agent.y[-1])
+                # self.camera.SetAttValue('CoordZ',self.agent.z[-1])
+                self.update_counter = 1
+            else:
+                self.update_counter += 1
         else:
             logger.error("Camera not assigned to agent with ID #"+str(agent.id))

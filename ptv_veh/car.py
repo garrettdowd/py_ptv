@@ -118,7 +118,7 @@ def saveResults(filepath=None):
     # make sure that the necessary folder structure exists
     file_dir = os.path.dirname(filepath)
     if not os.path.exists(file_dir):
-        logger.debug("Creating directory "+file_dir)
+        logger.info("Creating directory "+file_dir)
         os.makedirs(file_dir)
 
     logger.info("Saving Car Results to "+filepath)
@@ -195,7 +195,6 @@ class Car:
         self.vissim_type = Vissim.Net.VehicleTypes.ItemByKey(self.type) # For IVehicleType attributes
         self.capacity = int(self.vissim_type.AttValue('Capacity'))
 
-        self.position = lambda: [self.x[-1],self.y[-1]] # current position
         self.active = 1 # is this object currently active in the simulation?
 
         Car.all_cars.append(self) # add to list of all cars
@@ -219,6 +218,7 @@ class Car:
                 # get data from VISSIM
                 car = next((car for car in Car.all_vissim_cars if car['No']==self.id), None)
                 if car != None:
+                    self.attributes = car
                     self.time.append(TIME)
                     self.x.append(_none_check(car['CoordFront'][0],'float'))
                     self.y.append(_none_check(car['CoordFront'][1],'float'))
@@ -253,6 +253,10 @@ class Car:
 
             else:
                 return 0
+
+    def position(self):
+        pos = [self.x[-1],self.y[-1]] # current position
+        return pos 
 
     def deactivate(self):
         self.active = 0
@@ -308,11 +312,11 @@ class Car:
 
 
     def setComms(self,comms):
-        logger.debug("Setting comms for car # "+str(self.id))
+        logger.info("Setting comms for car # "+str(self.id))
         self.comms = comms
 
     def setSkill(self,skill_id):
-        logger.debug("Setting skill # "+str(skill_id)+" for car # "+str(self.id))
+        logger.info("Setting skill # "+str(skill_id)+" for car # "+str(self.id))
         # copy skills to local variables
         skill = next((skill for skill in SKILLS if skill.id == skill_id),None)
         if skill:
@@ -325,7 +329,7 @@ class Car:
             return 0
 
     def setMsgHandler(self,message_handler):
-        logger.debug("Setting message handler for car # "+str(self.id))
+        logger.info("Setting message handler for car # "+str(self.id))
         self.m = message_handler
 
 
@@ -333,6 +337,65 @@ class Car:
     """ Helper functions go here
 
     """
+
+    """ Sends car to parking lot with given ID (dynamic assignment)
+
+    """
+    def go_park(self, parking_lot_id):
+        # Assign a new destination in terms of a parking lot to a vehicle.
+        # Inputs:
+        #   vehicleID:        Integer value of a vehicle ID,  example: 53
+        #   destParkingLot:   Integer value of a parking lot, example: 5
+        # Output:
+        #   newPath as IPath PTV Vissim object.
+
+        # check if a vehicle parks => vehicle has no NextNode
+        if self.attributes['InteractTargType'] == 'PARKINGLOT' and self.attributes['InteractState'] == 'DWELL':
+            current_parking_lot = self.attributes['InteractTargNo']
+            if current_parking_lot == parking_lot_id:
+                logger.error('Vehicle #' + str(vehicleID) + ' is send to destination parking lot #' + str(destParkingLot) + ' but is already there => no new path assigned to the vehicle.')
+                return None
+            start_node = NextNodeFromParkingLot(current_parking_lot)
+        else:
+            # check if a vehicle is inside of a node:
+            if self.attributes['PrevNode\No'] != None and self.attributes['PrevNode\No'] == self.attributes['NextNode\No']:
+                # calculates the Node sequence of a path using the Edge information
+                # only returns the Node, not the Turns
+                currentPathAttributes = [x for x in pathAttributes if x[pathAttNames['No']] == self.attributes['Path\No']][0]
+                currentPathAttributes = zip(currentPathAttributes[pathAttNames['Concatenate:EdgeSeq\FromNode']],currentPathAttributes[pathAttNames['Concatenate:EdgeSeq\ToNode']],currentPathAttributes[pathAttNames['Concatenate:EdgeSeq\IsTurn']]) # only the relevant information
+                nodesNoTurns = [x for x in currentPathAttributes if x[2] == 0] # delete Nodes from Turns
+                nodeSequence = map(lambda x: x[0], nodesNoTurns) + [nodesNoTurns[-1][1]] # all FromNodes + last ToNode
+
+                indexOfCurrentNode = nodeSequence.index(self.attributes['NextNode\No'])
+                if len(nodeSequence) > indexOfCurrentNode:
+                    start_node = nodeSequence[indexOfCurrentNode + 1]
+                else:
+                    print 'No next Node downstream for Path #' + str(pathNo) + ' because Node #' + str(currentNode) + ' is the last Node of the Path. Next Node will be None.'
+                    start_node = None
+            else:
+                # check if vehicle has no status (because it was just added):
+                if self.attributes['PrevNode\No'] == None and self.attributes['Path\No'] == None:
+                    start_node = self.attributes['OrigParkLot\No'] # in this example the origin parking lot equals the current node, because the parking lots are modelled inside the node!
+                else:
+                    # get the next Node as vehicle attribute:
+                    start_node = self.attributes['NextNode\No']
+
+        next_node_sequence = CalculateShortestRouteToDestination(start_node, parking_lot_id) # Simple shortest Path algorithm based on distance (not taking into account distances of turns!):
+
+        # Add current node to node sequence, if vehicle is inside of a node:
+        if self.attributes['PrevNode\No'] != None and self.attributes['PrevNode\No'] == self.attributes['NextNode\No']:
+            next_node_sequence = [self.attributes['NextNode\No']] + next_node_sequence
+
+        logger.info('Path for vehicle #' + str(vehicleID) + ': ToParkLot #' + str(parking_lot_id) + ' Node sequence: ' + str(next_node_sequence))
+        new_path = Vissim.Net.Paths.AddPathForVehicle(self.id, parking_lot_id, next_node_sequence)
+        # Assign Path to Vehicle
+        self.vissim.AssignPath(new_path)
+
+        return new_path
+
+    """ Returns car id number of front vehicle (if it exists)
+
+    """    
     def get_car_front(self,max_dist=300):
         front_car = None
         if self.lead_object_type == 'VEHICLE':
