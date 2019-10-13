@@ -8,7 +8,7 @@ import pandas as pd
 __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
 __license__ = "MPL-2.0"
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,17 @@ SKILLS = [
     Skill(20, 0, 45, 4, 5, 3, 800),
     Skill(100, 15.2, 39, 4, 5, 3, 900)
 ]
-CAMERA_PARAM = {
+UAV_DEFAULT = {
+    'comms': None,
+    'msg_handler': None,
+    'model_flag': False,
+    'camera_flag': False,
+    'skill': 0,
+    'position': [0,0,0],
+    'sim_type': "ZO",
+    'sim_mult': 2,
+}
+CAMERA_DEFAULT = {
     'FOV': 20,
     'PitchAngle': 90,
     'RollAngle': 0,
@@ -32,16 +42,7 @@ CAMERA_PARAM = {
     'ResX': 720,
     'ResY': 480,
     'Framerate': 20,
-}
-DEFAULT = {
-    'comms': None,
-    'msg_handler': None,
-    'model_flag': False,
-    'camera_flag': False,
-    'skill': 0,
-    'position': [0,0,0],
-    'sim_type': "ZO",
-    'sim_mult': 2
+    'Pos': [0,0,-100],
 }
 """ Intended Use Documentation Here
 3D Models and cameras must be created before the start of simulation so the code had to be structured to accomodate that requirement
@@ -49,13 +50,13 @@ DEFAULT = {
 
 
 """
-def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, num_cameras=0, defaults=None, uav_skills=None, camera_param=None):
+def setup(_Vissim, _RESULTS_DIR, uav_skills=None, uav_default=None, camera_default=None):
     global Vissim
     global RESULTS_DIR
     global SKILLS
-    global CAMERA_PARAM
+    global UAV_DEFAULT
+    global CAMERA_DEFAULT
     global TIME
-    global DEFAULT
 
     Vissim = _Vissim
     RESULTS_DIR = _RESULTS_DIR
@@ -68,64 +69,16 @@ def setup(_Vissim, _RESULTS_DIR, model_filepath, num_models=0, model_scale=1, nu
             else:
                 SKILLS.append(new_skill)
 
-    if camera_param != None:
-        for param in camera_param:
-            CAMERA_PARAM[param] = camera_param[param]
+    if uav_default != None:
+        for default in uav_default:
+            UAV_DEFAULT[default] = uav_default[default]
 
-    if defaults != None:
-        for default in defaults:
-            DEFAULT[default] = defaults[default]
+    if camera_default != None:
+        for param in camera_default:
+            CAMERA_DEFAULT[param] = camera_default[param]
 
     TIME = float(Vissim.Simulation.AttValue('SimSec'))
     
-    # cannot create static models during simulation 
-    # so must create a predefined number before simulation starts
-    # define uav models
-    # may need to erase previous 3D models, need some logic to only delete UAV models and not other models
-    if num_models > 0:
-        for i in range(num_models):
-            Vissim.Net.Static3DModels.AddStatic3DModel(0, model_filepath, 'Point(0, 0, 0)')
-        models = Vissim.Net.Static3DModels.GetAll()
-        for model in models:
-            model.SetAttValue('CoordX', 0)
-            model.SetAttValue('CoordY', 0)
-            model.SetAttValue('CoordZOffset', -100)
-            model.SetAttValue('Scale', model_scale)
-            Model(model)
-            
-    # may need to delete all existing cameras and storyboards
-    if num_cameras > 0:
-        for i in range(num_cameras):
-            Vissim.Net.CameraPositions.AddCameraPosition(0, 'Point(0, 0, 0)') 
-            Vissim.Net.Storyboards.AddStoryboard(0)
-        cameras = Vissim.Net.CameraPositions.GetAll()
-        for camera in cameras:
-            camera.SetAttValue('CoordX', 0)
-            camera.SetAttValue('CoordY', 0)
-            camera.SetAttValue('CoordZ', -100)
-            camera.SetAttValue('FOV', CAMERA_PARAM['FOV'])
-            camera.SetAttValue('PitchAngle', CAMERA_PARAM['PitchAngle'])
-            camera.SetAttValue('RollAngle', CAMERA_PARAM['RollAngle'])
-            camera.SetAttValue('YawAngle', CAMERA_PARAM['YawAngle'])
-            Camera(camera)
-        storyboards = Vissim.Net.Storyboards.GetAll()
-        i = 0 # to name the video files
-        for i,storyboard in enumerate(storyboards):
-            storyboard.SetAttValue('Filename', RESULTS_DIR+"Camera "+str(i)+".avi")
-            storyboard.SetAttValue('RecAVI', CAMERA_PARAM['RecAVI']) # create AVI file
-            storyboard.SetAttValue('ShowPrev', CAMERA_PARAM['ShowPrev']) # show preview of camera during sim
-            storyboard.SetAttValue('Resolution', 1) # specify user defined resolution. Must do this to specify x,y res
-            storyboard.SetAttValue('ResX', CAMERA_PARAM['ResX'])
-            storyboard.SetAttValue('ResY', CAMERA_PARAM['ResY'])
-            storyboard.SetAttValue('Framerate', CAMERA_PARAM['Framerate'])
-            storyboard.Keyframes.AddKeyframe(0)
-            keyframes = storyboard.Keyframes.GetAll()
-            for keyframe in keyframes:
-                keyframe.SetAttValue('CamPos', cameras[i])
-                keyframe.SetAttValue('StartTime', 1) # StartTime == 0 means that recording must be manually started from presentation tab
-                keyframe.SetAttValue('DwellTime', 600)
-            
-
 
 def update(model_update_rate=1, camera_update_rate=1): # call at beginning of every loop
     global TIME
@@ -192,23 +145,11 @@ class UAV:
             return False
 
     # define what happens when an uav object is instatiated
-    def __init__(self, comms=None, msg_handler=None, model_flag=None, camera_flag=None, skill=None, pos=None, sim_type=None, sim_mult=None):
-        if comms == None:
-            comms = DEFAULT['comms']
-        if msg_handler == None:
-            msg_handler = DEFAULT['msg_handler']
-        if model_flag == None:
-            model_flag = DEFAULT['model_flag']
-        if camera_flag == None:
-            camera_flag = DEFAULT['camera_flag']
-        if skill == None:
-            skill = DEFAULT['skill']
-        if pos == None:
-            pos = DEFAULT['position']
-        if sim_type == None:
-            sim_type = DEFAULT['sim_type']
-        if sim_mult == None:
-            sim_mult = DEFAULT['sim_mult']
+    def __init__(self, parameters=None):
+        uav_default = UAV_DEFAULT
+        if parameters != None:
+            for param in parameters:
+                uav_default[param] = parameters[param]
 
         # define a unique id
         if not self.all_uavs:
@@ -216,16 +157,16 @@ class UAV:
         else:
             max_id = max([uav.id for uav in self.all_uavs])
             self.id = max_id + 1
-        if len(pos) != 3:
-            logger.critical("UAV instantiation, invalid position: "+ str(pos))
+        if len(uav_default['position']) != 3:
+            logger.critical("UAV instantiation, invalid position: "+ str(uav_default['position']))
             Vissim.Simulation.Stop()
         self.time = [TIME]
-        self.x = [pos[0]]
-        self.y = [pos[1]]
-        self.z = [pos[2]]
-        self.position = lambda: [self.x[-1],self.y[-1],self.z[-1]] # current position
+        self.x = [uav_default['position'][0]]
+        self.y = [uav_default['position'][1]]
+        self.z = [uav_default['position'][2]]
+        
 
-        self.dest = [[pos[0],pos[1],pos[2]]] # destination. where uav should be flying to
+        self.dest = [[self.x[-1],self.y[-1],self.z[-1]]] # destination. where uav should be flying to
         self.car = None
         self.default_altitude = 50
         self.mission = 0 # defines what the uav should be doing e.g. car following = 1, stationary point = 0.
@@ -234,22 +175,21 @@ class UAV:
 
         self.model3D = None
         self.camera = None
-        if camera_flag:
+        if uav_default['camera_flag']:
             self._addCamera()
-
-        if model_flag:
+        if uav_default['model_flag']:
             self._add3D()
 
-        self.setComms(comms) # Comm object
-        self.setMsgHandler(msg_handler)
-        self.setSkill(skill)
+        self.setComms(uav_default['comms']) # Comm object
+        self.setMsgHandler(uav_default['msg_handler'])
+        self.setSkill(uav_default['skill'])
 
         UAV.all_uavs.append(self)
         UAV.active_uavs.append(self)
         ##########################################################
         self.sim = dict()
-        self.sim['type'] = sim_type
-        self.sim['mult'] = sim_mult
+        self.sim['type'] = uav_default['sim_type']
+        self.sim['mult'] = uav_default['sim_mult']
 
     def update(self):
         if self.mission == 'car_follow':
@@ -258,6 +198,9 @@ class UAV:
             logger.debug('UAV with ID# '+str(self.id)+' following car. Current car location is ' + str(xy))
         self._simXYZ()
 
+    def position(self):
+        pos = [self.x[-1],self.y[-1],self.z[-1]] # current position
+        return pos
 
     def deactivate(self):
         self.active = False
@@ -624,7 +567,12 @@ class Model:
     def __eq__(self, other):
         return self.id == other.id
 
-    def __init__(self,model):
+    def __init__(self, filepath, model_scale=1, pos=[0,0,-100]):
+        model = Vissim.Net.Static3DModels.AddStatic3DModel(0, filepath, 'Point(0, 0, 0)')
+        model.SetAttValue('CoordX', pos[0])
+        model.SetAttValue('CoordY', pos[1])
+        model.SetAttValue('CoordZOffset', pos[2])
+        model.SetAttValue('Scale', model_scale)
         self.model = model
         self.agent = None
         self.update_rate = 1
@@ -677,7 +625,21 @@ class Camera:
     def __eq__(self, other):
         return self.id == other.id
 
-    def __init__(self,camera):
+    def __init__(self, num_cameras=1, parameters=None):
+        # may need to delete all existing cameras and storyboards
+        camera_default = CAMERA_DEFAULT
+        if parameters != None:
+            for param in parameters:
+                camera_default[param] = parameters[param]
+
+        camera = Vissim.Net.CameraPositions.AddCameraPosition(0, 'Point(0, 0, 0)') 
+        camera.SetAttValue('CoordX', camera_default['Pos'][0])
+        camera.SetAttValue('CoordY', camera_default['Pos'][1])
+        camera.SetAttValue('CoordZ', camera_default['Pos'][2])
+        camera.SetAttValue('FOV', camera_default['FOV'])
+        camera.SetAttValue('PitchAngle', camera_default['PitchAngle'])
+        camera.SetAttValue('RollAngle', camera_default['RollAngle'])
+        camera.SetAttValue('YawAngle', camera_default['YawAngle'])
         self.camera = camera
         self.agent = None
         self.update_rate = 1
@@ -688,6 +650,20 @@ class Camera:
             max_id = max([camera.id for camera in self.all_cameras])
             self.id = max_id + 1
         Camera.all_cameras.append(self)
+
+        storyboard = Vissim.Net.Storyboards.AddStoryboard(0)
+        storyboard.SetAttValue('Filename', RESULTS_DIR+"Camera "+str(self.id)+".avi")
+        storyboard.SetAttValue('RecAVI', camera_default['RecAVI']) # create AVI file
+        storyboard.SetAttValue('ShowPrev', camera_default['ShowPrev']) # show preview of camera during sim
+        storyboard.SetAttValue('Resolution', 1) # specify user defined resolution. Must do this to specify x,y res
+        storyboard.SetAttValue('ResX', camera_default['ResX'])
+        storyboard.SetAttValue('ResY', camera_default['ResY'])
+        storyboard.SetAttValue('Framerate', camera_default['Framerate'])
+
+        keyframe = storyboard.Keyframes.AddKeyframe(0)
+        keyframe.SetAttValue('CamPos', camera)
+        keyframe.SetAttValue('StartTime', 1) # StartTime == 0 means that recording must be manually started from presentation tab
+        keyframe.SetAttValue('DwellTime', 600)
 
     def assign(self,agent):
         if self.agent == None:

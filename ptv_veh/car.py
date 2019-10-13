@@ -7,7 +7,7 @@ import pandas as pd
 __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
 __license__ = "MPL-2.0"
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,8 @@ class Skill(namedtuple('Skill', 'id, comm_type, comm_range')):
 ######################
 # DEFAULTS
 ######################
+# REQUIRED ATTRIBUTES
+# ['CoordFront','Lane\Link\No','Lane\Index','RouteNo','RoutDecNo','DesSpeed','Speed','Hdwy','Occup','DistTravTot','LeadTargNo','LeadTargType']
 ATTRIBUTES = ['No','VehType','CoordFront', 'CoordRear','Lane\Link\No', 'Lane\Index', 'DestLane', 'Lane\Link\NumLanes','Length','DesSpeed','Speed', 'Acceleration','DistTravTot','LeadTargNo','LeadTargType','Hdwy','RoutDecNo', 'RouteNo','Occup']
 
 SKILLS = [
@@ -29,7 +31,7 @@ SKILLS = [
     Skill(200,'cell',500),
     Skill(300,'web',100000) # 'infinite' range
 ]
-DEFAULT = {
+CAR_DEFAULT = {
     'comms': None,
     'msg_handler': None,
     'skill': 0,
@@ -39,7 +41,7 @@ DEFAULT = {
     'desired_speed': 0
 }
 ######################
-# /DEFAULTS
+# DEFAULTS
 ######################
 """ Intended Use Documentation Here
 
@@ -48,21 +50,22 @@ DEFAULT = {
 
 """
 
-def setup(_Vissim, _RESULTS_DIR, _custom_veh_type_list, defaults=None, car_attributes=None, car_skills=None):
+def setup(_Vissim, _RESULTS_DIR, _tracked_veh_type_list, car_default=None, vissim_attributes=None, car_skills=None):
     global Vissim # follows naming convention of standard Vissim COM interface
     global RESULTS_DIR
-    global CUSTOM_VEH_TYPES
+    global TRACKED_VEH_TYPES
+    global CAR_DEFAULT
     global ATTRIBUTES
     global SKILLS
     global TIME
-    global DEFAULT
 
     Vissim = _Vissim
-    CUSTOM_VEH_TYPES = _custom_veh_type_list
+    TRACKED_VEH_TYPES = _tracked_veh_type_list
     RESULTS_DIR = _RESULTS_DIR
 
-    if car_attributes != None:
-        ATTRIBUTES = car_attributes
+    if vissim_attributes != None:
+        ATTRIBUTES = vissim_attributes
+
     if car_skills != None:
         for new_skill in car_skills:
             if new_skill in SKILLS:
@@ -70,11 +73,13 @@ def setup(_Vissim, _RESULTS_DIR, _custom_veh_type_list, defaults=None, car_attri
                 SKILLS[idx] = new_skill
             else:
                 SKILLS.append(new_skill)
-    if defaults != None:
-        for default in defaults:
-            DEFAULT[default] = defaults[default]
+
+    if car_default != None:
+        for default in car_default:
+            CAR_DEFAULT[default] = car_default[default]
 
     TIME = float(Vissim.Simulation.AttValue('SimSec'))
+
 
 def update(): # call at beginning of every loop
     Car.null_cars = []
@@ -94,7 +99,7 @@ def update(): # call at beginning of every loop
             Car.all_vissim_cars[-1]['CoordRear'] = _parse_coord(Car.all_vissim_cars[-1]['CoordRear'])
 
     # deactivate all out of scope vehicles
-    for veh_type in CUSTOM_VEH_TYPES:
+    for veh_type in TRACKED_VEH_TYPES:
         new_car_nums = [int(veh['No']) for veh in Car.all_vissim_cars if int(veh['VehType'])==veh_type]
         old_car_nums = [car.id for car in Car.active_cars if car.type==veh_type]
         for num in old_car_nums:
@@ -105,7 +110,7 @@ def update(): # call at beginning of every loop
                 if car != None:
                     car.deactivate()
         for num in new_car_nums:
-            Car(num)
+            Car(num) # create new instance with default parameters for all new vehicles
 
     for car in Car.all_cars:
         car.update('master')
@@ -165,29 +170,19 @@ class Car:
         else:
             return False
 
-    def __init__(self, car_num=None,comms=None,msg_handler=None,skill=None,veh_type=None,link=None,lane=None,desired_speed=None):
-        if comms == None:
-            comms = DEFAULT['comms']
-        if msg_handler == None:
-            msg_handler = DEFAULT['msg_handler']
-        if skill == None:
-            skill = DEFAULT['skill']
-        if veh_type == None:
-            veh_type = DEFAULT['veh_type']
-        if link == None:
-            link = DEFAULT['link']
-        if lane == None:
-            lane = DEFAULT['lane']
-        if desired_speed == None:
-            desired_speed = DEFAULT['desired_speed']
+    def __init__(self, car_num=None, parameters=None):
+        car_default = CAR_DEFAULT
+        if parameters != None:
+            for param in parameters:
+                car_default[param] = parameters[default]
 
-        logger.debug("Creating a Car object with # "+str(car_num))
+        logger.info("Creating a Car object with # "+str(car_num))
         if car_num == None:
             # Putting a new vehicle in the network:
-            self.type = veh_type
-            self.dspeed = desired_speed # unit according to the user setting in Vissim [km/h or mph]
-            self.link = link
-            self.lane = lane
+            self.type = car_default['veh_type']
+            self.dspeed = car_default['desired_speed'] # unit according to the user setting in Vissim [km/h or mph]
+            self.link = car_default['link']
+            self.lane = car_default['lane']
             start_pos = 0 # unit according to the user setting in Vissim [m or ft]
             interaction = True # optional boolean, should vehicle interact with other vehicles and such?
             self.vissim = Vissim.Net.Vehicles.AddVehicleAtLinkPosition(self.type, self.link, self.lane, start_pos, self.dspeed, interaction)
@@ -212,10 +207,10 @@ class Car:
         self.x = []
         self.y = []
         
-        self.update('master')
-        self.setComms(comms)
-        self.setSkill(skill)
-        self.setMsgHandler(msg_handler)
+        self.update('master') # get data from Vissim
+        self.setComms(car_default['comms'])
+        self.setSkill(car_default['skill'])
+        self.setMsgHandler(car_default['msg_handler'])
 
 
     def update(self, update_type):
@@ -242,7 +237,7 @@ class Car:
                     return 1
                 else:
                     logger.critical("Car # "+str(self.id)+" does not exist in network. Cannot update()")
-
+            # included for speed comparison, this is how library was orignally written
             elif update_type == 'self':
                 self.dspeed = float(self.vissim.AttValue('DesSpeed'))
                 linklane = self.vissim.AttValue('Lane')
