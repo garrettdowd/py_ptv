@@ -4,6 +4,7 @@ import datetime as dt
 import logging
 from collections import namedtuple
 import pandas as pd
+import numpy as np
 
 __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
@@ -164,6 +165,7 @@ class UAV:
         self.x = [uav_default['position'][0]]
         self.y = [uav_default['position'][1]]
         self.z = [uav_default['position'][2]]
+        self.heading = 0 # [pitch(-90,90), roll(0,360), yaw(0,360)]
         
 
         self.dest = [[self.x[-1],self.y[-1],self.z[-1]]] # destination. where uav should be flying to
@@ -351,6 +353,18 @@ class UAV:
                 error_direction = [0,0,0]
             self.sim['err_mag'] = [error_magnitude]
             self.sim['err_dir'] = [error_direction]
+            pitch = 90 * error_direction[2]
+            roll = 0
+            if error_direction[0] == 0:
+                yaw = 0
+            elif error_direction[1] == 0:
+                yaw = 90
+            else:
+                yaw = np.degrees(np.arctan(error_direction[1]/error_direction[0]))
+                if yaw < 0:
+                    yaw += 360
+            
+            self.heading = [pitch, roll, yaw]
             # self.sim['err_mag'].append(error_magnitude)
             # self.sim['err_dir'].append(error_direction)
             # if len(self.x)<3:
@@ -477,6 +491,7 @@ class UAV:
                 newPosZ = desired_vel_z * dt + self.z[-1]
 
 
+
         self.x.append(self.sim['x'][-1])
         self.y.append(self.sim['y'][-1])
         self.z.append(self.sim['z'][-1])
@@ -567,7 +582,7 @@ class Model:
     def __eq__(self, other):
         return self.id == other.id
 
-    def __init__(self, filepath, model_scale=1, pos=[0,0,-100]):
+    def __init__(self, filepath, model_scale=1, pos=[0,0,-100], yaw_offset=0):
         model = Vissim.Net.Static3DModels.AddStatic3DModel(0, filepath, 'Point(0, 0, 0)')
         model.SetAttValue('CoordX', pos[0])
         model.SetAttValue('CoordY', pos[1])
@@ -576,6 +591,7 @@ class Model:
         self.model = model
         self.agent = None
         self.update_rate = 1
+        self.yaw_offset = yaw_offset
         if not self.all_models:
             self.id = 0
         else:
@@ -610,6 +626,10 @@ class Model:
                 # self.model.SetAttValue('CoordX',self.agent.x[-1])
                 # self.model.SetAttValue('CoordY',self.agent.y[-1])
                 # self.model.SetAttValue('CoordZOffset',self.agent.z[-1])
+
+                # self.model.SetAttValue('PitchAngle', )
+                # self.model.SetAttValue('RollAngle', )
+                self.model.SetAttValue('YawAngle', (self.agent.heading[2]+self.yaw_offset)%360)
                 self.update_counter = 1
             else:
                 self.update_counter += 1
@@ -692,6 +712,11 @@ class Camera:
                 # self.camera.SetAttValue('CoordX',self.agent.x[-1])
                 # self.camera.SetAttValue('CoordY',self.agent.y[-1])
                 # self.camera.SetAttValue('CoordZ',self.agent.z[-1])
+
+                # self.model.SetAttValue('PitchAngle', )
+                # self.model.SetAttValue('RollAngle', )
+                self.camera.SetAttValue('YawAngle', self.agent.heading[2])
+
                 self.update_counter = 1
             else:
                 self.update_counter += 1
