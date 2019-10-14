@@ -24,10 +24,10 @@ class Skill(namedtuple('Skill', 'id, comm_type, comm_range')):
 ATTRIBUTES = ['No','VehType','CoordFront', 'CoordRear','Lane\Link\No', 'Lane\Index', 'DestLane', 'Lane\Link\NumLanes','Length','DesSpeed','Speed', 'Acceleration','DistTravTot','LeadTargNo','LeadTargType','Hdwy','RoutDecNo', 'RouteNo','Occup']
 
 SKILLS = [
-    Skill(0,'dsrc',700),
-    Skill(10,'dsrc',500),
+    Skill(0,'dsrc',500),
+    Skill(10,'dsrc',700),
     Skill(20,'dsrc',1000),
-    Skill(100,'bt',200),
+    Skill(100,'bt',100),
     Skill(200,'cell',500),
     Skill(300,'web',100000) # 'infinite' range
 ]
@@ -436,19 +436,21 @@ class Car:
 
 
     def _dist(self, loc1, loc2):
+        # Calculate Euclidian Distance
         if len(loc1) < 2 | len(loc1) > 3:
-            logger.critical("Invalid location 1 for class Car method _dist()")
+            logger.critical("Invalid location 1")
             Vissim.Simulation.Stop()
         elif len(loc1) == 2:
             loc1.append(0)
 
         if len(loc2) < 2 | len(loc2) > 3:
-            logger.critical("Invalid location 2 for class Car method _dist()")
+            logger.critical("Invalid location 2")
             Vissim.Simulation.Stop()
         if len(loc2) == 2:
             loc2.append(0)
 
-        return (loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2 + (loc1[2] - loc2[2])**2 
+        dist = ( (loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2 + (loc1[2] - loc2[2])**2 )**0.5
+        return dist
 
 
     #######################################################

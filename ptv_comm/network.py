@@ -11,7 +11,7 @@ __version__ = "0.0.1"
 
 
 logger = logging.getLogger(__name__)
-Message = namedtuple('Message', 'timestamp, sender_id, recipient_id, msg_type, payload, delay, dropped')
+Message = namedtuple('Message', 'timestamp, sender_id, sender_loc, recipient_id, recipient_loc, msg_type, payload, delay, dropped')
 
 """ Intended Use Documentation Here
 
@@ -102,12 +102,12 @@ class Net:
                     logger.error("When broadcasting a message, given recipient_id #"+str(recipient_id)+" does not exist")
                     # Vissim.Simulation.Stop()
 
-    def _createMsg(self, sender_id, recipient_id, msg_type, payload, loc1, loc2, comm_range):
+    def _createMsg(self, sender_id, recipient_id, msg_type, payload, sender_loc, recipient_loc, comm_range):
         time = Vissim.Simulation.AttValue('SimSec')
         delay = self._delay()
-        dist = self._dist(loc1,loc2)
+        dist = self._dist(sender_loc,recipient_loc)
         dropped = self._drop(dist, comm_range)
-        msg =  Message(time, sender_id, recipient_id, msg_type, payload, delay, dropped)
+        msg =  Message(time, sender_id, sender_loc, recipient_id, recipient_loc, msg_type, payload, delay, dropped)
         self.all_messages.append(msg)
         return msg
 
@@ -129,19 +129,21 @@ class Net:
         return random.gauss(self.delay_gauss_mean, self.delay_guass_stddev)
 
     def _dist(self, loc1, loc2):
+        # Calculate Euclidian Distance
         if len(loc1) < 2 | len(loc1) > 3:
-            logger.critical("Invalid location 1 for class Net method _dist()")
+            logger.critical("Invalid location 1")
             Vissim.Simulation.Stop()
         elif len(loc1) == 2:
             loc1.append(0)
 
         if len(loc2) < 2 | len(loc2) > 3:
-            logger.critical("Invalid location 2 for class Net method _dist()")
+            logger.critical("Invalid location 2")
             Vissim.Simulation.Stop()
         if len(loc2) == 2:
             loc2.append(0)
 
-        return (loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2 + (loc1[2] - loc2[2])**2 
+        dist = ( (loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2 + (loc1[2] - loc2[2])**2 )**0.5
+        return dist
 
     # this needs to be updated with an equation that can better model the chance of dropping messages based on distance
     def _drop(self, dist, comm_range):
@@ -176,14 +178,16 @@ def saveResults(filepath=None):
         os.makedirs(file_dir)
 
     logger.info("saving network results to "+filepath)
-    column_comms = ['timestamp', 'sender_id', 'recipient_id', 'msg_type', 'payload', 'delay', 'dropped']
+    column_comms = ['timestamp', 'sender_id', 'sender_loc', 'recipient_id', 'recipient_loc', 'msg_type', 'payload', 'delay', 'dropped']
     df = []
     for net in Net.all_nets:
         for msg in net.all_messages:
             df_d = {
                 'timestamp': msg.timestamp,
                 'sender_id': msg.sender_id,
+                'sender_loc': msg.sender_loc,
                 'recipient_id': msg.recipient_id,
+                'recipient_loc': msg.recipient_loc,
                 'msg_type': msg.msg_type,
                 'payload': msg.payload,
                 'delay': msg.delay,

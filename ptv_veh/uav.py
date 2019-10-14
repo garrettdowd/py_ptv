@@ -26,7 +26,7 @@ SKILLS = [
 UAV_DEFAULT = {
     'comms': None,
     'msg_handler': None,
-    'model_flag': False,
+    'model_flag': True,
     'camera_flag': False,
     'skill': 0,
     'position': [0,0,0],
@@ -539,6 +539,23 @@ class UAV:
 
     #     return result
 
+    def _dist(self, loc1, loc2):
+        # Calculate Euclidian Distance
+        if len(loc1) < 2 | len(loc1) > 3:
+            logger.critical("Invalid location 1")
+            Vissim.Simulation.Stop()
+        elif len(loc1) == 2:
+            loc1.append(0)
+
+        if len(loc2) < 2 | len(loc2) > 3:
+            logger.critical("Invalid location 2")
+            Vissim.Simulation.Stop()
+        if len(loc2) == 2:
+            loc2.append(0)
+
+        dist = ( (loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2 + (loc1[2] - loc2[2])**2 )**0.5
+        return dist
+
     def _add3D(self):
         if not self.model3D:
             model = next((model for model in Model.all_models if model.agent == None), None)
@@ -591,6 +608,7 @@ class Model:
         self.model = model
         self.agent = None
         self.update_rate = 1
+        self.update_counter = 1
         self.yaw_offset = yaw_offset
         if not self.all_models:
             self.id = 0
@@ -663,6 +681,7 @@ class Camera:
         self.camera = camera
         self.agent = None
         self.update_rate = 1
+        self.update_counter = 1
         # define a unique id
         if not self.all_cameras:
             self.id = 0
