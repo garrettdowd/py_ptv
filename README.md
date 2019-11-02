@@ -6,11 +6,12 @@ A collection of useful Vissim command wrappers and functions for autonomous and 
 **ptv_veh.car**  
 This module provides a python object to easily interact with vehicles in Vissim. 
 *Documentation on the provided methods needs to be written*  
+### 
 
 ## uav
 **ptv_veh.uav**  
 This module allows you to add a UAV to your Vissim simulation environment. 
-Decision logic and dynamics are fully handled within this class. 
+Decision logic and dynamics are fully handled within this module. 
 The UAV can be visualized as a 3D model during simulation.  
 Video recordings can be taken from the persepctive of the UAV.  
 *Documentation on the provided methods needs to be written*  
@@ -19,8 +20,7 @@ Video recordings can be taken from the persepctive of the UAV.
 **ptv_comm.network**  
 This module provides a generic class for one agent to send a message to other agents  
 *Documentation on the provided methods needs to be written*  
-*Documentation on the requirements of the agent's methods needs to be written*  
-
+*Documentation on the requirements of the message handlers needs to be written*  
 
 # Installation notes
 This package is currently in an alpha state. It is meant to be locally installed for development purposes.
@@ -41,3 +41,37 @@ This package is currently in an alpha state. It is meant to be locally installed
 1) Import the car module using `from ptv_veh import car`
 1) Import the uav module using `from ptv_veh import uav`
 1) Import the network module using `from ptv_comm import network`
+
+# Examples
+
+Example Simulation
+
+Message handler
+
+
+# Details
+## car
+**ptv_veh.car**  
+*Documentation on the provided methods needs to be written* 
+### Use
+
+### Parameters
+
+### Methods
+
+### Vissim Updates
+
+## uav
+**ptv_veh.uav**  
+*Documentation on the provided methods needs to be written*  
+
+## network
+**ptv_comm.network**  
+*Documentation on the provided methods needs to be written*  
+*Documentation on the requirements of the message handlers needs to be written*  
+
+
+# To Do
+- ptv_comm.network transition to IP addressing 
+- pull out and modularize some generic functions - _dist, saveResults,
+- add reference coordinates to saveResults, allowing for conversion to global coordinates (mercator/decimal)
