@@ -195,9 +195,14 @@ class UAV:
 
     def update(self):
         if self.mission == 'car_follow':
-            xy = self.car.position()
-            self.setDest(xy)
-            logger.debug('UAV with ID# '+str(self.id)+' following car. Current car location is ' + str(xy))
+            if self.car.active != 0:
+                xy = self.car.position()
+                self.setDest(xy)
+                logger.debug('UAV with ID# '+str(self.id)+' following car. Current car location is ' + str(xy))
+            else:
+                self.setCar(None)
+                self.deactivate()
+
         self._simXYZ()
 
     def position(self):
@@ -214,10 +219,6 @@ class UAV:
             logger.error("Active IDs are "+str(active_ids))
         self._remove3D()
         self._removeCamera()
-
-        # self.model3D.SetAttValue('CoordX',0)
-        # self.model3D.SetAttValue('CoordY',0)
-        # self.model3D.SetAttValue('CoordZOffset',500)
 
     def setDest(self, xyz):
         if xyz == None:
