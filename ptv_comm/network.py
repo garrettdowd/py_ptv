@@ -8,7 +8,7 @@ __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
 __license__ = "MPL-2.0"
 __version__ = "0.0.1"
-
+# Implement IP Networking
 
 logger = logging.getLogger(__name__)
 Message = namedtuple('Message', 'timestamp, sender_id, sender_loc, recipient_id, recipient_loc, msg_type, payload, delay, dropped')
