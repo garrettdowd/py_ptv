@@ -14,15 +14,25 @@ __version__ = "0.0.2"
 logger = logging.getLogger(__name__)
 
 class Skill(namedtuple('Skill', 'id, min_speed, max_speed, max_acc, max_ascent, max_descent, comm_range')):
+    """One liner.
+
+    """
     def __eq__(self, other):
         return self.id == other.id
 
+"""One liner.
+
+"""
 SKILLS = [
     Skill(0, 0, 35, 3.5, 5, 2, 1000),
     Skill(10, 0, 19.9, 4, 5, 3, 800),
     Skill(20, 0, 45, 4, 5, 3, 800),
     Skill(100, 15.2, 39, 4, 5, 3, 900)
 ]
+
+"""One liner.
+
+"""
 UAV_DEFAULT = {
     'comms': None,
     'msg_handler': None,
@@ -33,6 +43,10 @@ UAV_DEFAULT = {
     'sim_type': "ZO",
     'sim_mult': 2,
 }
+
+"""One liner.
+
+"""
 CAMERA_DEFAULT = {
     'FOV': 20,
     'PitchAngle': 90,
@@ -45,13 +59,12 @@ CAMERA_DEFAULT = {
     'Framerate': 20,
     'Pos': [0,0,-100],
 }
-""" Intended Use Documentation Here
-3D Models and cameras must be created before the start of simulation so the code had to be structured to accomodate that requirement
-3D Models can really slow down the simulation speed (by half)
 
 
-"""
 def setup(_Vissim, _RESULTS_DIR, uav_skills=None, uav_default=None, camera_default=None):
+    """One liner.
+
+    """
     global Vissim
     global RESULTS_DIR
     global SKILLS

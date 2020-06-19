@@ -1,0 +1,589 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ptv_veh.car &#8212; PyPTV 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for ptv_veh.car</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">datetime</span> <span class="k">as</span> <span class="nn">dt</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Garrett Dowd&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright (C) 2019 Garrett Dowd&quot;</span>
+<span class="n">__license__</span> <span class="o">=</span> <span class="s2">&quot;MPL-2.0&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.0.2&quot;</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Skill"><a class="viewcode-back" href="../../index.html#ptv_veh.car.Skill">[docs]</a><span class="k">class</span> <span class="nc">Skill</span><span class="p">(</span><span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;Skill&#39;</span><span class="p">,</span> <span class="s1">&#39;id, comm_type, comm_range&#39;</span><span class="p">)):</span>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span></div>
+
+<span class="c1">######################</span>
+<span class="c1"># DEFAULTS</span>
+<span class="c1">######################</span>
+<span class="c1"># REQUIRED ATTRIBUTES</span>
+<span class="c1"># [&#39;CoordFront&#39;,&#39;Lane\Link\No&#39;,&#39;Lane\Index&#39;,&#39;RouteNo&#39;,&#39;RoutDecNo&#39;,&#39;DesSpeed&#39;,&#39;Speed&#39;,&#39;Hdwy&#39;,&#39;Occup&#39;,&#39;DistTravTot&#39;,&#39;LeadTargNo&#39;,&#39;LeadTargType&#39;]</span>
+<span class="n">ATTRIBUTES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;No&#39;</span><span class="p">,</span><span class="s1">&#39;VehType&#39;</span><span class="p">,</span><span class="s1">&#39;CoordFront&#39;</span><span class="p">,</span> <span class="s1">&#39;CoordRear&#39;</span><span class="p">,</span><span class="s1">&#39;Lane\Link\No&#39;</span><span class="p">,</span> <span class="s1">&#39;Lane\Index&#39;</span><span class="p">,</span> <span class="s1">&#39;DestLane&#39;</span><span class="p">,</span> <span class="s1">&#39;Lane\Link\NumLanes&#39;</span><span class="p">,</span><span class="s1">&#39;Length&#39;</span><span class="p">,</span><span class="s1">&#39;DesSpeed&#39;</span><span class="p">,</span><span class="s1">&#39;Speed&#39;</span><span class="p">,</span> <span class="s1">&#39;Acceleration&#39;</span><span class="p">,</span><span class="s1">&#39;DistTravTot&#39;</span><span class="p">,</span><span class="s1">&#39;LeadTargNo&#39;</span><span class="p">,</span><span class="s1">&#39;LeadTargType&#39;</span><span class="p">,</span><span class="s1">&#39;Hdwy&#39;</span><span class="p">,</span><span class="s1">&#39;RoutDecNo&#39;</span><span class="p">,</span> <span class="s1">&#39;RouteNo&#39;</span><span class="p">,</span><span class="s1">&#39;Occup&#39;</span><span class="p">]</span>
+
+<span class="n">SKILLS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="s1">&#39;dsrc&#39;</span><span class="p">,</span><span class="mi">500</span><span class="p">),</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="s1">&#39;dsrc&#39;</span><span class="p">,</span><span class="mi">700</span><span class="p">),</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="s1">&#39;dsrc&#39;</span><span class="p">,</span><span class="mi">1000</span><span class="p">),</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="s1">&#39;bt&#39;</span><span class="p">,</span><span class="mi">100</span><span class="p">),</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="s1">&#39;cell&#39;</span><span class="p">,</span><span class="mi">500</span><span class="p">),</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">300</span><span class="p">,</span><span class="s1">&#39;web&#39;</span><span class="p">,</span><span class="mi">100000</span><span class="p">)</span> <span class="c1"># &#39;infinite&#39; range</span>
+<span class="p">]</span>
+<span class="n">CAR_DEFAULT</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;comms&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="s1">&#39;msg_handler&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="s1">&#39;skill&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;veh_type&#39;</span><span class="p">:</span> <span class="mi">111</span><span class="p">,</span>
+    <span class="s1">&#39;link&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s1">&#39;lane&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s1">&#39;desired_speed&#39;</span><span class="p">:</span> <span class="mi">0</span>
+<span class="p">}</span>
+<span class="c1">######################</span>
+<span class="c1"># DEFAULTS</span>
+<span class="c1">######################</span>
+<span class="sd">&quot;&quot;&quot; Intended Use Documentation Here</span>
+
+
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="n">_Vissim</span><span class="p">,</span> <span class="n">_RESULTS_DIR</span><span class="p">,</span> <span class="n">_tracked_veh_type_list</span><span class="p">,</span> <span class="n">car_default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">vissim_attributes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">car_skills</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">Vissim</span> <span class="c1"># follows naming convention of standard Vissim COM interface</span>
+    <span class="k">global</span> <span class="n">RESULTS_DIR</span>
+    <span class="k">global</span> <span class="n">TRACKED_VEH_TYPES</span>
+    <span class="k">global</span> <span class="n">CAR_DEFAULT</span>
+    <span class="k">global</span> <span class="n">ATTRIBUTES</span>
+    <span class="k">global</span> <span class="n">SKILLS</span>
+    <span class="k">global</span> <span class="n">TIME</span>
+
+    <span class="n">Vissim</span> <span class="o">=</span> <span class="n">_Vissim</span>
+    <span class="n">TRACKED_VEH_TYPES</span> <span class="o">=</span> <span class="n">_tracked_veh_type_list</span>
+    <span class="n">RESULTS_DIR</span> <span class="o">=</span> <span class="n">_RESULTS_DIR</span>
+
+    <span class="k">if</span> <span class="n">vissim_attributes</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ATTRIBUTES</span> <span class="o">=</span> <span class="n">vissim_attributes</span>
+
+    <span class="k">if</span> <span class="n">car_skills</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">new_skill</span> <span class="ow">in</span> <span class="n">car_skills</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">new_skill</span> <span class="ow">in</span> <span class="n">SKILLS</span><span class="p">:</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">SKILLS</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">new_skill</span><span class="p">)</span>
+                <span class="n">SKILLS</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_skill</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">SKILLS</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_skill</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">car_default</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">default</span> <span class="ow">in</span> <span class="n">car_default</span><span class="p">:</span>
+            <span class="n">CAR_DEFAULT</span><span class="p">[</span><span class="n">default</span><span class="p">]</span> <span class="o">=</span> <span class="n">car_default</span><span class="p">[</span><span class="n">default</span><span class="p">]</span>
+
+    <span class="n">TIME</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;SimSec&#39;</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">update</span><span class="p">():</span> <span class="c1"># call at beginning of every loop</span>
+    <span class="n">Car</span><span class="o">.</span><span class="n">null_cars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">Car</span><span class="o">.</span><span class="n">new_cars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">global</span> <span class="n">TIME</span>
+    <span class="n">TIME</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;SimSec&#39;</span><span class="p">))</span>
+    <span class="n">all_vissim_cars</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Net</span><span class="o">.</span><span class="n">Vehicles</span><span class="o">.</span><span class="n">GetMultipleAttributes</span><span class="p">(</span><span class="n">ATTRIBUTES</span><span class="p">)</span>
+    
+    <span class="c1"># Convert to dictionary and parse any strings (make this robust to changes in attributes)</span>
+    <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">all_vissim_cars</span><span class="p">:</span>
+        <span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="n">key</span><span class="p">:</span><span class="n">car</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ATTRIBUTES</span><span class="p">)})</span>
+        <span class="k">if</span> <span class="s1">&#39;CoordFront&#39;</span> <span class="ow">in</span> <span class="n">ATTRIBUTES</span><span class="p">:</span>
+            <span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;CoordFront&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_parse_coord</span><span class="p">(</span><span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;CoordFront&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s1">&#39;CoordRear&#39;</span> <span class="ow">in</span> <span class="n">ATTRIBUTES</span><span class="p">:</span>
+            <span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;CoordRear&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_parse_coord</span><span class="p">(</span><span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;CoordRear&#39;</span><span class="p">])</span>
+
+    <span class="c1"># deactivate all out of scope vehicles</span>
+    <span class="k">for</span> <span class="n">veh_type</span> <span class="ow">in</span> <span class="n">TRACKED_VEH_TYPES</span><span class="p">:</span>
+        <span class="n">new_car_nums</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">veh</span><span class="p">[</span><span class="s1">&#39;No&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">veh</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span> <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">veh</span><span class="p">[</span><span class="s1">&#39;VehType&#39;</span><span class="p">])</span><span class="o">==</span><span class="n">veh_type</span><span class="p">]</span>
+        <span class="n">old_car_nums</span> <span class="o">=</span> <span class="p">[</span><span class="n">car</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">active_cars</span> <span class="k">if</span> <span class="n">car</span><span class="o">.</span><span class="n">type</span><span class="o">==</span><span class="n">veh_type</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">old_car_nums</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">new_car_nums</span><span class="p">:</span>
+                <span class="n">new_car_nums</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">num</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">car</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">car</span> <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">active_cars</span> <span class="k">if</span> <span class="n">car</span><span class="o">.</span><span class="n">id</span><span class="o">==</span><span class="n">num</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">car</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">car</span><span class="o">.</span><span class="n">deactivate</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">new_car_nums</span><span class="p">:</span>
+            <span class="n">Car</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="c1"># create new instance with default parameters for all new vehicles</span>
+
+    <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">all_cars</span><span class="p">:</span>
+        <span class="n">car</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;master&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">getCars</span><span class="p">():</span>
+    <span class="n">cars</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">cars</span><span class="p">[</span><span class="s1">&#39;all&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Car</span><span class="o">.</span><span class="n">all_cars</span>
+    <span class="n">cars</span><span class="p">[</span><span class="s1">&#39;active&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Car</span><span class="o">.</span><span class="n">active_cars</span>
+    <span class="n">cars</span><span class="p">[</span><span class="s1">&#39;new&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Car</span><span class="o">.</span><span class="n">new_cars</span>
+    <span class="n">cars</span><span class="p">[</span><span class="s1">&#39;null&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Car</span><span class="o">.</span><span class="n">null_cars</span>
+    <span class="k">return</span> <span class="n">cars</span>
+
+<span class="k">def</span> <span class="nf">saveResults</span><span class="p">(</span><span class="n">filepath</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">filepath</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="n">RESULTS_DIR</span>
+    <span class="c1"># make sure that the necessary folder structure exists</span>
+    <span class="n">file_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_dir</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating directory &quot;</span><span class="o">+</span><span class="n">file_dir</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Saving Car Results to &quot;</span><span class="o">+</span><span class="n">filepath</span><span class="p">)</span>
+    <span class="n">column_cars</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;carID&#39;</span><span class="p">,</span> <span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">]</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">all_cars</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">car</span><span class="o">.</span><span class="n">time</span><span class="p">)):</span>
+            <span class="n">df_d</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;carID&#39;</span><span class="p">:</span> <span class="n">car</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="n">car</span><span class="o">.</span><span class="n">time</span><span class="p">[</span><span class="n">t</span><span class="p">],</span>
+                <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">car</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">],</span>
+                <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">car</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="p">}</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_d</span><span class="p">)</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">column_cars</span><span class="p">)</span>  <span class="c1"># ensure columns are in correct order</span>
+    <span class="c1"># df = df.iloc[::-1] # reverse order of rows</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1">#Vissim does not seem to close the python interpreter after stopping the simulation.</span>
+    <span class="c1">#Therefore we need to clear names/variables that might cause problems when starting a new simulation</span>
+    <span class="c1"># Car.all_cars=Car.active_cars=Car.new_cars=Car.null_cars=[]</span>
+    <span class="c1"># This also means you need to restart Vissim if you made changes to the python files/library</span>
+
+
+<span class="k">class</span> <span class="nc">Car</span><span class="p">:</span>
+    <span class="n">all_cars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">active_cars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">new_cars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">null_cars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">all_vissim_cars</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">other</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">car_num</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">car_default</span> <span class="o">=</span> <span class="n">CAR_DEFAULT</span>
+        <span class="k">if</span> <span class="n">parameters</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+                <span class="n">car_default</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="n">default</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating a Car object with # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">car_num</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">car_num</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Putting a new vehicle in the network:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">car_default</span><span class="p">[</span><span class="s1">&#39;veh_type&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dspeed</span> <span class="o">=</span> <span class="n">car_default</span><span class="p">[</span><span class="s1">&#39;desired_speed&#39;</span><span class="p">]</span> <span class="c1"># unit according to the user setting in Vissim [km/h or mph]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">link</span> <span class="o">=</span> <span class="n">car_default</span><span class="p">[</span><span class="s1">&#39;link&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lane</span> <span class="o">=</span> <span class="n">car_default</span><span class="p">[</span><span class="s1">&#39;lane&#39;</span><span class="p">]</span>
+            <span class="n">start_pos</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># unit according to the user setting in Vissim [m or ft]</span>
+            <span class="n">interaction</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1"># optional boolean, should vehicle interact with other vehicles and such?</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vissim</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Net</span><span class="o">.</span><span class="n">Vehicles</span><span class="o">.</span><span class="n">AddVehicleAtLinkPosition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">link</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lane</span><span class="p">,</span> <span class="n">start_pos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dspeed</span><span class="p">,</span> <span class="n">interaction</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;No&#39;</span><span class="p">))</span> <span class="c1"># get vehicle number from vissim</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># if car_num != 0</span>
+            <span class="c1"># Get existing info from vehicle already defined in the network</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">car_num</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vissim</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Net</span><span class="o">.</span><span class="n">Vehicles</span><span class="o">.</span><span class="n">ItemByKey</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="c1"># For IVehicle Attributes</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;VehType&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">vissim_type</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Net</span><span class="o">.</span><span class="n">VehicleTypes</span><span class="o">.</span><span class="n">ItemByKey</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">)</span> <span class="c1"># For IVehicleType attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">capacity</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim_type</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;Capacity&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">active</span> <span class="o">=</span> <span class="mi">1</span> <span class="c1"># is this object currently active in the simulation?</span>
+
+        <span class="n">Car</span><span class="o">.</span><span class="n">all_cars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="c1"># add to list of all cars</span>
+        <span class="n">Car</span><span class="o">.</span><span class="n">active_cars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">Car</span><span class="o">.</span><span class="n">new_cars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># initialize all lists</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;master&#39;</span><span class="p">)</span> <span class="c1"># get data from Vissim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setComms</span><span class="p">(</span><span class="n">car_default</span><span class="p">[</span><span class="s1">&#39;comms&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setSkill</span><span class="p">(</span><span class="n">car_default</span><span class="p">[</span><span class="s1">&#39;skill&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setMsgHandler</span><span class="p">(</span><span class="n">car_default</span><span class="p">[</span><span class="s1">&#39;msg_handler&#39;</span><span class="p">])</span>
+
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update_type</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">active</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">update_type</span> <span class="o">==</span> <span class="s1">&#39;master&#39;</span><span class="p">:</span>
+                <span class="c1"># get data from VISSIM</span>
+                <span class="n">car</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">car</span> <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span> <span class="k">if</span> <span class="n">car</span><span class="p">[</span><span class="s1">&#39;No&#39;</span><span class="p">]</span><span class="o">==</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">car</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="n">car</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TIME</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;CoordFront&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;float&#39;</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;CoordFront&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="s1">&#39;float&#39;</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">link</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;Lane\Link\No&#39;</span><span class="p">],</span><span class="s1">&#39;int&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">lane</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;Lane\Index&#39;</span><span class="p">],</span><span class="s1">&#39;int&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">route_num</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;RouteNo&#39;</span><span class="p">],</span><span class="s1">&#39;int&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">route_decision_num</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;RoutDecNo&#39;</span><span class="p">],</span><span class="s1">&#39;int&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dspeed</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;DesSpeed&#39;</span><span class="p">],</span><span class="s1">&#39;float&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;Speed&#39;</span><span class="p">],</span><span class="s1">&#39;float&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">headway</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;Hdwy&#39;</span><span class="p">],</span><span class="s1">&#39;float&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">occupancy</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;Occup&#39;</span><span class="p">],</span><span class="s1">&#39;int&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">total_distance</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;DistTravTot&#39;</span><span class="p">],</span><span class="s1">&#39;float&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">lead_object_num</span> <span class="o">=</span> <span class="n">_none_check</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;LeadTargNo&#39;</span><span class="p">],</span><span class="s1">&#39;int&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">lead_object_type</span> <span class="o">=</span> <span class="n">car</span><span class="p">[</span><span class="s1">&#39;LeadTargType&#39;</span><span class="p">]</span> <span class="c1"># NONE, VEHICLE, SIGNALHEAD, CONFLICTAREA, STOPSIGN, REDUCEDSPEEDAREA</span>
+                    <span class="k">return</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Car # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; does not exist in network. Cannot update()&quot;</span><span class="p">)</span>
+            <span class="c1"># included for speed comparison, this is how library was orignally written</span>
+            <span class="k">elif</span> <span class="n">update_type</span> <span class="o">==</span> <span class="s1">&#39;self&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dspeed</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;DesSpeed&#39;</span><span class="p">))</span>
+                <span class="n">linklane</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;Lane&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">link</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">linklane</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lane</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">linklane</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;Speed&#39;</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;SimSec&#39;</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;CoordFrontX&#39;</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;CoordFrontY&#39;</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">occupancy</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;Occup&#39;</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lead_object_num</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;LeadTargNo&#39;</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lead_object_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;LeadTargType&#39;</span><span class="p">)</span> <span class="c1"># NONE, VEHICLE, SIGNALHEAD, CONFLICTAREA, STOPSIGN, REDUCEDSPEEDAREA</span>
+                <span class="k">return</span> <span class="mi">1</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="c1"># current position</span>
+        <span class="k">return</span> <span class="n">pos</span> 
+
+    <span class="k">def</span> <span class="nf">deactivate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">Car</span><span class="o">.</span><span class="n">null_cars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="c1"># Car.active_cars.remove(self)</span>
+        <span class="k">if</span> <span class="bp">self</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">active_cars</span><span class="p">:</span>
+            <span class="n">Car</span><span class="o">.</span><span class="n">active_cars</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Trying to remove car &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; from active_cars failed&quot;</span><span class="p">)</span>
+            <span class="n">active_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">car</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">active_cars</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Active IDs are &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">active_ids</span><span class="p">))</span>
+
+    <span class="c1">#######################################################</span>
+    <span class="sd">&quot;&quot;&quot; Communication functions go here</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">sendMsg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recipient_id</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">msg_type</span><span class="o">=</span><span class="s1">&#39;loc&#39;</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="s1">&#39;null&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Comms was not set up for car with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; cannot sendMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message logic was not set up for car with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; cannot sendMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">msg_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="o">.</span><span class="n">msg_types</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message type&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">msg_type</span> <span class="p">)</span><span class="o">+</span> <span class="s2">&quot;is not a valid type for car with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;, cannot sendMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recipient_id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+
+        <span class="n">recipient_id</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;recipient_id&#39;</span><span class="p">]</span>
+        <span class="n">msg_type</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;msg_type&#39;</span><span class="p">]</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;payload&#39;</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Car # &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; sending payload &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span> <span class="o">+</span><span class="s2">&quot; to &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">recipient_id</span><span class="p">))</span>
+        <span class="c1"># default message is broadcast to everyone listening (-1)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">comms</span><span class="o">.</span><span class="n">broadcast</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">comm_range</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="n">recipient_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+
+    <span class="k">def</span> <span class="nf">receiveMsg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Comms was not set up for car with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; cannot receiveMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message logic was not set up for car with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; cannot sendMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">msg_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="o">.</span><span class="n">msg_types</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message type&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">msg_type</span> <span class="p">)</span><span class="o">+</span> <span class="s2">&quot;is not a valid type for car with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;, cannot receiveMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+
+    <span class="k">def</span> <span class="nf">setComms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">comms</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting comms for car # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">comms</span> <span class="o">=</span> <span class="n">comms</span>
+
+    <span class="k">def</span> <span class="nf">setSkill</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">skill_id</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting skill # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">skill_id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; for car # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="c1"># copy skills to local variables</span>
+        <span class="n">skill</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">skill</span> <span class="k">for</span> <span class="n">skill</span> <span class="ow">in</span> <span class="n">SKILLS</span> <span class="k">if</span> <span class="n">skill</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">skill_id</span><span class="p">),</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">skill</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">comm_type</span> <span class="o">=</span> <span class="n">skill</span><span class="o">.</span><span class="n">comm_type</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">comm_range</span> <span class="o">=</span> <span class="n">skill</span><span class="o">.</span><span class="n">comm_range</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;When instantiating a Car object, given skill #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">skill_id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; does not exist&quot;</span><span class="p">)</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">setMsgHandler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">message_handler</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting message handler for car # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m</span> <span class="o">=</span> <span class="n">message_handler</span>
+
+
+    <span class="c1">#######################################################</span>
+    <span class="sd">&quot;&quot;&quot; Helper functions go here</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="sd">&quot;&quot;&quot; Sends car to parking lot with given ID (dynamic assignment)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">go_park</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parking_lot_id</span><span class="p">):</span>
+        <span class="c1"># Assign a new destination in terms of a parking lot to a vehicle.</span>
+        <span class="c1"># Inputs:</span>
+        <span class="c1">#   vehicleID:        Integer value of a vehicle ID,  example: 53</span>
+        <span class="c1">#   destParkingLot:   Integer value of a parking lot, example: 5</span>
+        <span class="c1"># Output:</span>
+        <span class="c1">#   newPath as IPath PTV Vissim object.</span>
+
+        <span class="c1"># check if a vehicle parks =&gt; vehicle has no NextNode</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;InteractTargType&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;PARKINGLOT&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;InteractState&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;DWELL&#39;</span><span class="p">:</span>
+            <span class="n">current_parking_lot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;InteractTargNo&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">current_parking_lot</span> <span class="o">==</span> <span class="n">parking_lot_id</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Vehicle #&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">vehicleID</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; is send to destination parking lot #&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">destParkingLot</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; but is already there =&gt; no new path assigned to the vehicle.&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">start_node</span> <span class="o">=</span> <span class="n">NextNodeFromParkingLot</span><span class="p">(</span><span class="n">current_parking_lot</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># check if a vehicle is inside of a node:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;PrevNode\No&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;PrevNode\No&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;NextNode\No&#39;</span><span class="p">]:</span>
+                <span class="c1"># calculates the Node sequence of a path using the Edge information</span>
+                <span class="c1"># only returns the Node, not the Turns</span>
+                <span class="n">currentPathAttributes</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">pathAttributes</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="n">pathAttNames</span><span class="p">[</span><span class="s1">&#39;No&#39;</span><span class="p">]]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;Path\No&#39;</span><span class="p">]][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">currentPathAttributes</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">currentPathAttributes</span><span class="p">[</span><span class="n">pathAttNames</span><span class="p">[</span><span class="s1">&#39;Concatenate:EdgeSeq\FromNode&#39;</span><span class="p">]],</span><span class="n">currentPathAttributes</span><span class="p">[</span><span class="n">pathAttNames</span><span class="p">[</span><span class="s1">&#39;Concatenate:EdgeSeq\ToNode&#39;</span><span class="p">]],</span><span class="n">currentPathAttributes</span><span class="p">[</span><span class="n">pathAttNames</span><span class="p">[</span><span class="s1">&#39;Concatenate:EdgeSeq\IsTurn&#39;</span><span class="p">]])</span> <span class="c1"># only the relevant information</span>
+                <span class="n">nodesNoTurns</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">currentPathAttributes</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="c1"># delete Nodes from Turns</span>
+                <span class="n">nodeSequence</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">nodesNoTurns</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="n">nodesNoTurns</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span> <span class="c1"># all FromNodes + last ToNode</span>
+
+                <span class="n">indexOfCurrentNode</span> <span class="o">=</span> <span class="n">nodeSequence</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;NextNode\No&#39;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">nodeSequence</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">indexOfCurrentNode</span><span class="p">:</span>
+                    <span class="n">start_node</span> <span class="o">=</span> <span class="n">nodeSequence</span><span class="p">[</span><span class="n">indexOfCurrentNode</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span> <span class="s1">&#39;No next Node downstream for Path #&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">pathNo</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; because Node #&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">currentNode</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; is the last Node of the Path. Next Node will be None.&#39;</span>
+                    <span class="n">start_node</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># check if vehicle has no status (because it was just added):</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;PrevNode\No&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;Path\No&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">start_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;OrigParkLot\No&#39;</span><span class="p">]</span> <span class="c1"># in this example the origin parking lot equals the current node, because the parking lots are modelled inside the node!</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># get the next Node as vehicle attribute:</span>
+                    <span class="n">start_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;NextNode\No&#39;</span><span class="p">]</span>
+
+        <span class="n">next_node_sequence</span> <span class="o">=</span> <span class="n">CalculateShortestRouteToDestination</span><span class="p">(</span><span class="n">start_node</span><span class="p">,</span> <span class="n">parking_lot_id</span><span class="p">)</span> <span class="c1"># Simple shortest Path algorithm based on distance (not taking into account distances of turns!):</span>
+
+        <span class="c1"># Add current node to node sequence, if vehicle is inside of a node:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;PrevNode\No&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;PrevNode\No&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;NextNode\No&#39;</span><span class="p">]:</span>
+            <span class="n">next_node_sequence</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;NextNode\No&#39;</span><span class="p">]]</span> <span class="o">+</span> <span class="n">next_node_sequence</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Path for vehicle #&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">vehicleID</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;: ToParkLot #&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">parking_lot_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; Node sequence: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">next_node_sequence</span><span class="p">))</span>
+        <span class="n">new_path</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Net</span><span class="o">.</span><span class="n">Paths</span><span class="o">.</span><span class="n">AddPathForVehicle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">parking_lot_id</span><span class="p">,</span> <span class="n">next_node_sequence</span><span class="p">)</span>
+        <span class="c1"># Assign Path to Vehicle</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">AssignPath</span><span class="p">(</span><span class="n">new_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">new_path</span>
+
+    <span class="sd">&quot;&quot;&quot; Returns car id number of front vehicle (if it exists)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>    
+    <span class="k">def</span> <span class="nf">get_car_front</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">max_dist</span><span class="o">=</span><span class="mi">300</span><span class="p">):</span>
+        <span class="n">front_car</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lead_object_type</span> <span class="o">==</span> <span class="s1">&#39;VEHICLE&#39;</span><span class="p">:</span>
+            <span class="n">car</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">car</span> <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span> <span class="k">if</span> <span class="n">car</span><span class="p">[</span><span class="s1">&#39;No&#39;</span><span class="p">]</span><span class="o">==</span><span class="bp">self</span><span class="o">.</span><span class="n">lead_object_num</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">car</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">front_car</span> <span class="o">=</span> <span class="n">car</span><span class="p">[</span><span class="s1">&#39;No&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Couldn&#39;t get front vehicle&quot;</span><span class="p">)</span>
+
+    <span class="sd">&quot;&quot;&quot; Returns car id numbers within specified radius</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">get_car_radius</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;brute&#39;</span><span class="p">,</span> <span class="n">dist_distr</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">close_cars</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">scope</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;brute&#39;</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;method &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">method</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; not valid. Options are &#39;brute&#39; and&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">close_cars</span>
+            
+            <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">all_vissim_cars</span><span class="p">:</span>
+                <span class="n">dist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">(),</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;CoordFront&#39;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;=</span> <span class="n">radius</span><span class="p">:</span>
+                    <span class="n">close_cars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">car</span><span class="p">[</span><span class="s1">&#39;No&#39;</span><span class="p">])</span>
+
+        <span class="k">elif</span> <span class="n">scope</span> <span class="o">==</span> <span class="s1">&#39;tracked&#39;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">car</span> <span class="ow">in</span> <span class="n">Car</span><span class="o">.</span><span class="n">active_cars</span><span class="p">:</span>
+                <span class="n">dist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">(),</span><span class="n">car</span><span class="o">.</span><span class="n">position</span><span class="p">())</span> 
+                <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;=</span> <span class="n">radius</span><span class="p">:</span>
+                    <span class="n">close_cars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">car</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;scope &#39;&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">scope</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;&#39; not valid. Options are &#39;all&#39; and &#39;tracked&#39;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">close_cars</span>
+
+
+    <span class="k">def</span> <span class="nf">_dist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loc1</span><span class="p">,</span> <span class="n">loc2</span><span class="p">):</span>
+        <span class="c1"># Calculate Euclidian Distance</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="o">|</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Invalid location 1&quot;</span><span class="p">)</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">loc1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="o">|</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Invalid location 2&quot;</span><span class="p">)</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">loc2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">dist</span> <span class="o">=</span> <span class="p">(</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span><span class="o">**</span><span class="mf">0.5</span>
+        <span class="k">return</span> <span class="n">dist</span>
+
+
+    <span class="c1">#######################################################</span>
+    <span class="sd">&quot;&quot;&quot; Wrapper functions go here</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">set_desired_speed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">speed</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;DesSpeed&#39;</span><span class="p">,</span><span class="n">speed</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">move_to_link</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">link_number</span><span class="p">,</span> <span class="n">lane_number</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">link_coordinate</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vissim</span><span class="o">.</span><span class="n">MoveToLinkPosition</span><span class="p">(</span><span class="n">link_number</span><span class="p">,</span> <span class="n">lane_number</span><span class="p">,</span> <span class="n">link_coordinate</span><span class="p">)</span>
+
+    <span class="c1"># def send_to_parking_lot(self)</span>
+
+
+<span class="k">def</span> <span class="nf">_parse_coord</span><span class="p">(</span><span class="n">coord_string</span><span class="p">):</span>
+    <span class="c1"># Adapted from Vissim Platooning example</span>
+    <span class="c1"># converts a Coordinates string with seperated values from PTV Vissim to a list of float</span>
+    <span class="c1"># Example: from input string &#39;-514.485 -294.097 0.000&#39; to output list of floats: [-514.485, -294.097, 0.000]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">coord_string</span><span class="p">:</span>
+        <span class="n">listCoordinates</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># if the string is empty &#39;&#39; or None, an empty list is returned</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">listCoordinates</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">coord_string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">))</span> <span class="c1"># from &#39;-514.485 -294.097 0.000&#39; split first to [&#39;-514.485&#39;, &#39;-294.097&#39;, &#39;0.000&#39;] and than to integer: [-514.485, -294.097, 0.000]</span>
+    <span class="k">return</span> <span class="n">listCoordinates</span>
+
+<span class="k">def</span> <span class="nf">_none_check</span><span class="p">(</span><span class="n">vissim_attribute</span><span class="p">,</span> <span class="n">attrib_type</span><span class="p">):</span>
+    <span class="c1"># Vissim COM returns values as strings and if the value does not exist it will return a NoneType.</span>
+    <span class="c1"># This functions makes it easier to both convert to the correct type while safeguarding against converting NoneType</span>
+    <span class="k">if</span> <span class="n">vissim_attribute</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">attrib_type</span> <span class="o">==</span> <span class="s1">&#39;int&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">vissim_attribute</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">attrib_type</span> <span class="o">==</span> <span class="s1">&#39;float&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">vissim_attribute</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">PyPTV</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Garrett Dowd.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

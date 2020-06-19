@@ -8,22 +8,29 @@ __author__ = "Garrett Dowd"
 __copyright__ = "Copyright (C) 2019 Garrett Dowd"
 __license__ = "MPL-2.0"
 __version__ = "0.0.1"
-# Implement IP Networking
+
+"""Implements a simple wired/wireless network for message passing.
+
+This module provides the underlying networking that objects can use to pass messages.
+Usually, the methods in this module will not be used directly, instead wrapper methods will be
+    defined in the object classes that use this module.
+"""
 
 logger = logging.getLogger(__name__)
 Message = namedtuple('Message', 'timestamp, sender_id, sender_loc, recipient_id, recipient_loc, msg_type, payload, delay, dropped')
-
-""" Intended Use Documentation Here
-
-    message delays can be used, but anything shorter than the sim time step
-        is trivial and can be ignored. This should be the case given a normal simulation time step
-        and a max communication distance of 1-2km
-    Agents must have a receiveMsg(msg_type, payload) function
-    Agents must have a unique "id" property - agent.id
-"""
+Event = namedtuple('Event', 'time, priority, action, argument')
 
 def setup(_Vissim, _RESULTS_DIR):
-    global Vissim # follows naming convention of standard Vissim COM interface
+    """Call before beginning of simulation to initialize module.
+
+    Gives the module access to the Vissim COM API and 
+    defines a directory to save results to.
+
+    Args:
+        _Vissim:(COM) the Vissim COM object associated with your simulation, commonly "Vissim"
+        _RESULTS_DIR:(string) an absolute directory
+    """
+    global Vissim       #follows naming convention of standard Vissim COM interface
     global RESULTS_DIR
     global SIM_RES
 
@@ -33,26 +40,32 @@ def setup(_Vissim, _RESULTS_DIR):
     
 
 def update():
+    """Call every time step to update messages.
+
+    This makes sure that every network is updated and messages are sent.
+    """
     for net in Net.all_nets:
         net.update()
 
 
-""" Intended Use Documentation Here
-    broadcast_location = [X,Y] or [X,Y,Z] - must be given as it determines which agents will be in range to receive the message
-    msg_type = integer - message types defined when instantiating the class
-    payload = string - parsing of payload is left to receiving agents
-    recipient_id = -1 will broadcast the message to all agents within range
-    sender_id = -1 means that the message is being sent anonymously
-
-"""
-# Allows us to directly on the class
-# class IterComm(type):
-#     def __iter__(cls):
-#         return iter(cls.all_nets)
-
 class Net:
-    # __metaclass__ = type
-    all_nets = []
+    """Generic Network class for message passing.
+
+    This class enables messages to be passed between objects with simplified
+    wired/wireless networking properties such as stochastic distance limits and delay.
+
+    Attributes:
+        type:(string) indicates a class of communicatin technology. Labelling purposes only
+        agents:(list[list[object]]) a list of lists containing objects reprsenting nodes in the network
+        NOT IMPLEMENTED - reliability_pct:(float) a percentage used to estimte the reliability of message delivery
+        delay_gauss_mean:(float) gaussian mean of delay
+        delay_guass_stddev:(float) guassian standard deviation of delay
+        s:(Sched object) the scheduler object to use for scheduling messages
+        all_messages:(list) a list of all created messages
+        all_nets:(list) list of all instantiated Net objects
+    """
+
+    all_nets = [] # list of all instantiated Net objects
 
     def __eq__(self, other):
         if other:
@@ -62,7 +75,21 @@ class Net:
 
 
     def __init__(self, tech_type, list_of_lists_of_agents, reliability_pct = 1 , delay_gauss_mean = 0, delay_guass_stddev = 0):
+        """Call before beginning of simulation to initialize module.
 
+        Gives the module access to the Vissim COM API and 
+        defines a directory to save results to.
+
+        Args:
+            type:(string) indicates a class of communicatin technology. Labelling purposes only
+            agents:(list[list[object]]) a list of lists containing objects* reprsenting nodes in the network
+            NOT IMPLEMENTED - reliability_pct:(float) a percentage used to estimte the reliability of message delivery
+            delay_gauss_mean:(float) gaussian mean of delay
+            delay_guass_stddev:(float) guassian standard deviation of delay
+
+        *object must have a receive method - agent.receiveMsg(sender_id, msg_type, payload)
+        *object must have a unique "id" attribute - agent.id
+        """
         # define a unique id
         if not self.all_nets:
             self.id = 0
@@ -80,12 +107,29 @@ class Net:
 
         self.all_nets.append(self) # add this instance to list of all instances for iteration
 
-    # update should be called every loop. This allows delayed messages to be sent out
+
     def update(self):
+        """No need to call this function directly.
+
+        This udpdates the assocaited scheduler which sends delayed messages.
+        This function is called by the module level update function.
+        """
         self.s.update()
 
+
     def broadcast(self, broadcast_location, comm_range, msg_type, payload, recipient_id = -1, sender_id = -1):
-        # recipient_id must be unique among all agents
+        """ Sends a message.
+
+        Args:
+            broadcast_location:(list) [X,Y] or [X,Y,Z] must be given as it determines which agents will be in range to receive the message
+            msg_type:(*) externally defined message types that determine how an agent shoud interpret the message. This could eventually be combined with the payload
+            payload:(*) parsing of payload is left to receiving agents
+            recipient_id:(integer) -1 will broadcast the message to all agents within range
+            sender_id: (integer) -1 means that the message is being sent anonymously
+
+        Recipient_id must be unique among all agents - this is a reason to implement IP networking
+        """
+
         if recipient_id == -1: # broadcast to all agents NOT including self (unless sent anonymously)
             for agent_list in self.agents:
                 for agent in agent_list:
@@ -103,6 +147,10 @@ class Net:
                     # Vissim.Simulation.Stop()
 
     def _createMsg(self, sender_id, recipient_id, msg_type, payload, sender_loc, recipient_loc, comm_range):
+        """Sub- function to create a message and calculate metadata.
+
+        This function creates a Message with delay and drop metadata
+        """
         time = Vissim.Simulation.AttValue('SimSec')
         delay = self._delay()
         dist = self._dist(sender_loc,recipient_loc)
@@ -112,6 +160,14 @@ class Net:
         return msg
 
     def _scheduleMsg(self, message):
+        """Schedule the message for future.
+
+        Args:
+            message:(Message)
+
+        If the delay is less than the simulation time step resolution then it sends it immediately.
+        Otherwise it schedules the message to be sent in the future.
+        """
         if message.dropped == 0:
             if message.delay < SIM_RES:
                 self._sendMsg(message)
@@ -119,16 +175,37 @@ class Net:
                 self.s.enter(message.delay,1,self._sendMsg,(message))
 
     def _sendMsg(self, message):
+        """This delivers a message to a recipient.
+
+        Args:
+            message:(Message)
+
+        Find the correct agent and call that agents receive message function.
+        """
         for agent_list in self.agents:
             agent = next((agent for agent in agent_list if agent.id==message.recipient_id), None)
             if agent != None:
                 agent.receiveMsg(message.sender_id, message.msg_type, message.payload)
 
-    # maybe should be based on congestion?
+    
     def _delay(self):
+        """
+        message delays can be used, but anything shorter than the sim time step
+        is trivial and can be ignored. This should be the case given a normal simulation time step
+        and a max communication distance of 1-2km
+
+        # maybe should be based on congestion?
+        """
         return random.gauss(self.delay_gauss_mean, self.delay_guass_stddev)
 
     def _dist(self, loc1, loc2):
+        """Calculate euclidian distance.
+
+        Args:
+            loc1:(list) [X,Y] or [X,Y,Z]  if only [X,Y] then Z is assumed to be 0
+            loc2:(list) [X,Y] or [X,Y,Z]  if only [X,Y] then Z is assumed to be 0
+
+        """
         # Calculate Euclidian Distance
         if len(loc1) < 2 | len(loc1) > 3:
             logger.critical("Invalid location 1")
@@ -147,27 +224,35 @@ class Net:
 
     # this needs to be updated with an equation that can better model the chance of dropping messages based on distance
     def _drop(self, dist, comm_range):
+        """Determine if message will be dropped (delivery failure).
+
+        Args:
+            dist:(float) the distance betwwen agents
+            comm_range:(float) rated distance at which the transmitter can send a message
+
+        Stochastic drop logic has not yet been implemented        
+        """
         normalized_diff = (comm_range - dist)/comm_range
-        # This is the function that calculates dropped message probability
-        # Does not current function (zero cannot be raised to a negative power)
-        # drop_chance = (1-self.reliability_pct)**(normalized_diff)-(1-self.reliability_pct) # https://www.desmos.com/calculator/w1g0o7umlq
-        # if drop_chance > 1:
-        #     return 0
-        # elif drop_chance < 0:
-        #     return 1
-        # else:
-        #     return random.randint(0,1)
+        
         if normalized_diff > 0:
             return 0 # message is not dropped
         elif normalized_diff < 0:
             return 1 # message is dropped
 
     def _timefunc(self):
+        """Returns Vissim SimSec."""
         return float(Vissim.Simulation.AttValue('SimSec'))
 
 
 
 def saveResults(filepath=None):
+    """Save all messages to a csv file.
+
+    Args:
+        filepath:(string) an absolute filepath. 
+
+    If a file path is not given then the default will be used
+    """
     # make sure that the necessary folder structure exists
     if filepath == None:
         filepath = RESULTS_DIR
@@ -203,20 +288,21 @@ def saveResults(filepath=None):
 
 
 def id(num):
+    """Return the Net object with the given id number"""
     return next((net for net in Net.all_nets if net.id==num), None)
 
 
 
-""" Generic python module "Sched" will not work in this context
-    Modify library slightly to work in this context
-    Main diferences
-        no delayfunc needed
-        no run() method. Replaced with update() method that is called every loop
-        "priority" not used because there is no real time context where events can be delayed past the intended delay time
-        heapq not used. regular sorted list used instead
-"""
-Event = namedtuple('Event', 'time, priority, action, argument')
+
 class Sched:
+    """ Generic python module "Sched" will not work in this context
+    Modify library slightly to work in this context
+    Main differences:
+    no delayfunc needed
+    no run() method. Replaced with update() method that is called every loop
+    "priority" not used because there is no real time context where events can be delayed past the intended delay time
+    heapq not used. regular sorted list used instead
+    """
     def __init__(self,timefunc):
         self.time = timefunc
         self._queue = [] # sorted from next to last

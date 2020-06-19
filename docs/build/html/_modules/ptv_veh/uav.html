@@ -1,0 +1,845 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ptv_veh.uav &#8212; PyPTV 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for ptv_veh.uav</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">datetime</span> <span class="k">as</span> <span class="nn">dt</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Garrett Dowd&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright (C) 2019 Garrett Dowd&quot;</span>
+<span class="n">__license__</span> <span class="o">=</span> <span class="s2">&quot;MPL-2.0&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.0.2&quot;</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Skill"><a class="viewcode-back" href="../../index.html#ptv_veh.uav.Skill">[docs]</a><span class="k">class</span> <span class="nc">Skill</span><span class="p">(</span><span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;Skill&#39;</span><span class="p">,</span> <span class="s1">&#39;id, min_speed, max_speed, max_acc, max_ascent, max_descent, comm_range&#39;</span><span class="p">)):</span>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span></div>
+
+<span class="n">SKILLS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">35</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1000</span><span class="p">),</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">19.9</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">800</span><span class="p">),</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">45</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">800</span><span class="p">),</span>
+    <span class="n">Skill</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mf">15.2</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">900</span><span class="p">)</span>
+<span class="p">]</span>
+<span class="n">UAV_DEFAULT</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;comms&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="s1">&#39;msg_handler&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="s1">&#39;model_flag&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="s1">&#39;camera_flag&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="s1">&#39;skill&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;position&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+    <span class="s1">&#39;sim_type&#39;</span><span class="p">:</span> <span class="s2">&quot;ZO&quot;</span><span class="p">,</span>
+    <span class="s1">&#39;sim_mult&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="n">CAMERA_DEFAULT</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;FOV&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="s1">&#39;PitchAngle&#39;</span><span class="p">:</span> <span class="mi">90</span><span class="p">,</span>
+    <span class="s1">&#39;RollAngle&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;YawAngle&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s1">&#39;RecAVI&#39;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+    <span class="s1">&#39;ShowPrev&#39;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+    <span class="s1">&#39;ResX&#39;</span><span class="p">:</span> <span class="mi">720</span><span class="p">,</span>
+    <span class="s1">&#39;ResY&#39;</span><span class="p">:</span> <span class="mi">480</span><span class="p">,</span>
+    <span class="s1">&#39;Framerate&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="s1">&#39;Pos&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="mi">100</span><span class="p">],</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot; Intended Use Documentation Here</span>
+<span class="sd">3D Models and cameras must be created before the start of simulation so the code had to be structured to accomodate that requirement</span>
+<span class="sd">3D Models can really slow down the simulation speed (by half)</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="n">_Vissim</span><span class="p">,</span> <span class="n">_RESULTS_DIR</span><span class="p">,</span> <span class="n">uav_skills</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">uav_default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">camera_default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">Vissim</span>
+    <span class="k">global</span> <span class="n">RESULTS_DIR</span>
+    <span class="k">global</span> <span class="n">SKILLS</span>
+    <span class="k">global</span> <span class="n">UAV_DEFAULT</span>
+    <span class="k">global</span> <span class="n">CAMERA_DEFAULT</span>
+    <span class="k">global</span> <span class="n">TIME</span>
+
+    <span class="n">Vissim</span> <span class="o">=</span> <span class="n">_Vissim</span>
+    <span class="n">RESULTS_DIR</span> <span class="o">=</span> <span class="n">_RESULTS_DIR</span>
+
+    <span class="k">if</span> <span class="n">uav_skills</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">new_skill</span> <span class="ow">in</span> <span class="n">uav_skills</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">new_skill</span> <span class="ow">in</span> <span class="n">SKILLS</span><span class="p">:</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">SKILLS</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">new_skill</span><span class="p">)</span>
+                <span class="n">SKILLS</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_skill</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">SKILLS</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_skill</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">uav_default</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">default</span> <span class="ow">in</span> <span class="n">uav_default</span><span class="p">:</span>
+            <span class="n">UAV_DEFAULT</span><span class="p">[</span><span class="n">default</span><span class="p">]</span> <span class="o">=</span> <span class="n">uav_default</span><span class="p">[</span><span class="n">default</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">camera_default</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">camera_default</span><span class="p">:</span>
+            <span class="n">CAMERA_DEFAULT</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">camera_default</span><span class="p">[</span><span class="n">param</span><span class="p">]</span>
+
+    <span class="n">TIME</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;SimSec&#39;</span><span class="p">))</span>
+    
+
+<span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="n">model_update_rate</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">camera_update_rate</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span> <span class="c1"># call at beginning of every loop</span>
+    <span class="k">global</span> <span class="n">TIME</span>
+    <span class="n">TIME</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;SimSec&#39;</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">uav</span> <span class="ow">in</span> <span class="n">UAV</span><span class="o">.</span><span class="n">active_uavs</span><span class="p">:</span>
+        <span class="n">uav</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">Model</span><span class="o">.</span><span class="n">active_models</span><span class="p">:</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">model_update_rate</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">camera</span> <span class="ow">in</span> <span class="n">Camera</span><span class="o">.</span><span class="n">active_cameras</span><span class="p">:</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">camera_update_rate</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">getUAVs</span><span class="p">():</span>
+    <span class="n">uavs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">uavs</span><span class="p">[</span><span class="s1">&#39;all&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">UAV</span><span class="o">.</span><span class="n">all_uavs</span>
+    <span class="n">uavs</span><span class="p">[</span><span class="s1">&#39;active&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">UAV</span><span class="o">.</span><span class="n">active_uavs</span>
+    <span class="k">return</span> <span class="n">uavs</span>
+
+<span class="k">def</span> <span class="nf">saveResults</span><span class="p">(</span><span class="n">filepath</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># make sure that the necessary folder structure exists</span>
+    <span class="k">if</span> <span class="n">filepath</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="n">RESULTS_DIR</span>
+    <span class="c1"># make sure that the necessary folder structure exists</span>
+    <span class="n">file_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_dir</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Creating directory &quot;</span><span class="o">+</span><span class="n">file_dir</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Saving UAV Results to &quot;</span><span class="o">+</span><span class="n">filepath</span><span class="p">)</span>
+    <span class="n">column_uav</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;uavID&#39;</span><span class="p">,</span> <span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">]</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">uav</span> <span class="ow">in</span> <span class="n">UAV</span><span class="o">.</span><span class="n">all_uavs</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">uav</span><span class="o">.</span><span class="n">time</span><span class="p">)):</span>
+            <span class="n">df_d</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;uavID&#39;</span><span class="p">:</span> <span class="n">uav</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="n">uav</span><span class="o">.</span><span class="n">time</span><span class="p">[</span><span class="n">t</span><span class="p">],</span>
+                <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">uav</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">],</span>
+                <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">uav</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">t</span><span class="p">],</span>
+                <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">uav</span><span class="o">.</span><span class="n">z</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="p">}</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_d</span><span class="p">)</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">column_uav</span><span class="p">)</span>  <span class="c1"># ensure columns are in correct order</span>
+    <span class="c1"># df = df.iloc[::-1] # reverse order of rows</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1">#Vissim does not sem to close the python interpreter after stopping the simulation.</span>
+    <span class="c1">#Therefore we need to clear names/variables that might cause problems when starting a new simulation</span>
+    <span class="c1"># Car.all_cars=Car.active_cars=Car.new_cars=Car.null_cars=[]</span>
+    <span class="c1"># This also means you need to restart Vissim if you made changes to the python files/library</span>
+
+<span class="k">class</span> <span class="nc">UAV</span><span class="p">:</span>
+    <span class="n">all_uavs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">active_uavs</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">other</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="c1"># define what happens when an uav object is instatiated</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">uav_default</span> <span class="o">=</span> <span class="n">UAV_DEFAULT</span>
+        <span class="k">if</span> <span class="n">parameters</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+                <span class="n">uav_default</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="n">param</span><span class="p">]</span>
+
+        <span class="c1"># define a unique id</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_uavs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">max_id</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">uav</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">uav</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_uavs</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">max_id</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;UAV instantiation, invalid position: &quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]))</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="n">TIME</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="p">[</span><span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">heading</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># [pitch(-90,90), roll(0,360), yaw(0,360)]</span>
+        
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dest</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]]</span> <span class="c1"># destination. where uav should be flying to</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">car</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_altitude</span> <span class="o">=</span> <span class="mi">50</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mission</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># defines what the uav should be doing e.g. car following = 1, stationary point = 0.</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">active</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1"># is this object currently active in the simulation?</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">model3D</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;camera_flag&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_addCamera</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;model_flag&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add3D</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setComms</span><span class="p">(</span><span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;comms&#39;</span><span class="p">])</span> <span class="c1"># Comm object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setMsgHandler</span><span class="p">(</span><span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;msg_handler&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setSkill</span><span class="p">(</span><span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;skill&#39;</span><span class="p">])</span>
+
+        <span class="n">UAV</span><span class="o">.</span><span class="n">all_uavs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">UAV</span><span class="o">.</span><span class="n">active_uavs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="c1">##########################################################</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sim</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;sim_type&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;mult&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">uav_default</span><span class="p">[</span><span class="s1">&#39;sim_mult&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mission</span> <span class="o">==</span> <span class="s1">&#39;car_follow&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">car</span><span class="o">.</span><span class="n">active</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">xy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">car</span><span class="o">.</span><span class="n">position</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">setDest</span><span class="p">(</span><span class="n">xy</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;UAV with ID# &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; following car. Current car location is &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">xy</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">setCar</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">deactivate</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_simXYZ</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="c1"># current position</span>
+        <span class="k">return</span> <span class="n">pos</span>
+
+    <span class="k">def</span> <span class="nf">deactivate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span> <span class="ow">in</span> <span class="n">UAV</span><span class="o">.</span><span class="n">active_uavs</span><span class="p">:</span>
+            <span class="n">UAV</span><span class="o">.</span><span class="n">active_uavs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Trying to remove UAV &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; from active_uavs failed&quot;</span><span class="p">)</span>
+            <span class="n">active_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">uav</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">uav</span> <span class="ow">in</span> <span class="n">UAV</span><span class="o">.</span><span class="n">active_uavs</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Active IDs are &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">active_ids</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remove3D</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_removeCamera</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">setDest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xyz</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">xyz</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Invalid Input - Input is None type&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">xyz</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_altitude</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Invalid input to setDest- &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">xyz</span><span class="p">))</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">xyz</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dest</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">setCar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">car</span><span class="p">,</span> <span class="n">default_altitude</span><span class="o">=</span><span class="mi">40</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">car</span> <span class="o">!=</span> <span class="n">car</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">car</span> <span class="o">=</span> <span class="n">car</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">car</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Cancelling car following for UAV with ID# &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mission</span> <span class="o">==</span> <span class="s1">&#39;hold&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting UAV with ID# &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; to follow car with ID# &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">car</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mission</span> <span class="o">=</span> <span class="s1">&#39;car_follow&#39;</span> <span class="c1"># actively track vehicle, possibly fly ahead to scout</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">default_altitude</span> <span class="o">=</span> <span class="n">default_altitude</span>
+
+
+
+    <span class="c1">#######################################################</span>
+    <span class="sd">&quot;&quot;&quot; Communication functions go here</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">sendMsg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recipient_id</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">msg_type</span><span class="o">=</span><span class="s1">&#39;loc&#39;</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="s1">&#39;null&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Comms was not set up for UAV with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; cannot sendMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message logic was not set up for UAV with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; cannot sendMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">msg_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="o">.</span><span class="n">msg_types</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message type&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">msg_type</span> <span class="p">)</span><span class="o">+</span> <span class="s2">&quot;is not a valid type for UAV with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;, cannot sendMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recipient_id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+
+        <span class="n">recipient_id</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;recipient_id&#39;</span><span class="p">]</span>
+        <span class="n">msg_type</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;msg_type&#39;</span><span class="p">]</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;payload&#39;</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;UAV # &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; sending payload &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span> <span class="o">+</span><span class="s2">&quot; to &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">recipient_id</span><span class="p">))</span>
+        <span class="c1"># default message is broadcast to everyone listening (-1)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">comms</span><span class="o">.</span><span class="n">broadcast</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">comm_range</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="n">recipient_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+
+    <span class="k">def</span> <span class="nf">receiveMsg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">comms</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Comms was not set up for UAV with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; cannot receiveMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message logic was not set up for UAV with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; cannot sendMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">msg_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="o">.</span><span class="n">msg_types</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message type&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">msg_type</span> <span class="p">)</span><span class="o">+</span> <span class="s2">&quot;is not a valid type for UAV with ID &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;, cannot receiveMsg()&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">setComms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">comm</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting comms for UAV # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">comms</span> <span class="o">=</span> <span class="n">comm</span>
+
+    <span class="k">def</span> <span class="nf">setSkill</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">skill_id</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting skill # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">skill_id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; for UAV # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="c1"># copy skills to local variables</span>
+        <span class="n">skill</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">skill</span> <span class="k">for</span> <span class="n">skill</span> <span class="ow">in</span> <span class="n">SKILLS</span> <span class="k">if</span> <span class="n">skill</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">skill_id</span><span class="p">),</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">skill</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">min_speed</span> <span class="o">=</span> <span class="n">skill</span><span class="o">.</span><span class="n">min_speed</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span> <span class="o">=</span> <span class="n">skill</span><span class="o">.</span><span class="n">max_speed</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span> <span class="o">=</span> <span class="n">skill</span><span class="o">.</span><span class="n">max_acc</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_ascent</span> <span class="o">=</span> <span class="n">skill</span><span class="o">.</span><span class="n">max_ascent</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_descent</span> <span class="o">=</span> <span class="n">skill</span><span class="o">.</span><span class="n">max_descent</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">comm_range</span> <span class="o">=</span> <span class="n">skill</span><span class="o">.</span><span class="n">comm_range</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;When instantiating a uav object, given skill #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">skill_id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; does not exist&quot;</span><span class="p">)</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">setMsgHandler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">message_handler</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting message handler for UAV # &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m</span> <span class="o">=</span> <span class="n">message_handler</span>
+    <span class="c1">##############################################################################</span>
+    <span class="c1">#############################################################################</span>
+
+    <span class="k">def</span> <span class="nf">_simXYZ</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sim_mult</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sim_type</span><span class="p">:</span>
+            <span class="n">sim_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sim_mult</span><span class="p">:</span>
+            <span class="n">sim_mult</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;mult&#39;</span><span class="p">]</span>
+
+        <span class="n">dt</span> <span class="o">=</span> <span class="p">(</span><span class="n">TIME</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">time_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sim_mult</span><span class="p">)</span>
+        <span class="n">sim_freq</span> <span class="o">=</span> <span class="n">sim_mult</span><span class="o">/</span><span class="n">dt</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;xd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;yd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;zd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;xyzd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;xyzdd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;err_mag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;err_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">time_steps</span><span class="p">):</span>
+            <span class="c1"># self.sim[&#39;time&#39;].append(self.sim[&#39;time&#39;][-1] + 1/sim_freq)</span>
+            <span class="n">err_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">err_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">err_z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">error_magnitude</span> <span class="o">=</span> <span class="p">(</span><span class="n">err_x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">err_y</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">err_z</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mf">0.5</span>
+            <span class="k">if</span> <span class="n">error_magnitude</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">error_direction</span> <span class="o">=</span> <span class="p">[</span><span class="n">err_x</span><span class="o">/</span><span class="n">error_magnitude</span><span class="p">,</span> <span class="n">err_y</span><span class="o">/</span><span class="n">error_magnitude</span><span class="p">,</span> <span class="n">err_z</span><span class="o">/</span><span class="n">error_magnitude</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">error_direction</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;err_mag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">error_magnitude</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;err_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">error_direction</span><span class="p">]</span>
+            <span class="n">pitch</span> <span class="o">=</span> <span class="mi">90</span> <span class="o">*</span> <span class="n">error_direction</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">roll</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">error_direction</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">yaw</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">elif</span> <span class="n">error_direction</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">yaw</span> <span class="o">=</span> <span class="mi">90</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">yaw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="n">error_direction</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">error_direction</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+                <span class="k">if</span> <span class="n">yaw</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">yaw</span> <span class="o">+=</span> <span class="mi">360</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">heading</span> <span class="o">=</span> <span class="p">[</span><span class="n">pitch</span><span class="p">,</span> <span class="n">roll</span><span class="p">,</span> <span class="n">yaw</span><span class="p">]</span>
+            <span class="c1"># self.sim[&#39;err_mag&#39;].append(error_magnitude)</span>
+            <span class="c1"># self.sim[&#39;err_dir&#39;].append(error_direction)</span>
+            <span class="c1"># if len(self.x)&lt;3:</span>
+            <span class="c1">#     if len(self.x)==2:</span>
+            <span class="c1">#         accx = speedx/dt</span>
+            <span class="c1">#         accy = speedy/dt</span>
+            <span class="c1">#         accz = speedz/dt</span>
+            <span class="c1">#     else:</span>
+            <span class="c1">#         accx = 0</span>
+            <span class="c1">#         accy = 0</span>
+            <span class="c1">#         accz = 0</span>
+            <span class="c1"># else:</span>
+            <span class="c1">#     accx = (self.x[-1] - 2*self.x[-2]-self.x[-3])/dt^2</span>
+            <span class="c1">#     accy = (self.y[-1] - 2*self.y[-2]-self.y[-3])/dt^2</span>
+            <span class="c1">#     accz = (self.z[-1] - 2*self.z[-2]-self.z[-3])/dt^2</span>
+
+            <span class="c1"># ### calculate velocity error term for control</span>
+            <span class="c1"># vel_errx = (self.dest[-1][0] - self.dest[-2][0])/dt - speedx</span>
+            <span class="c1"># vel_erry = (self.dest[-1][1] - self.dest[-2][1])/dt - speedy</span>
+            <span class="c1"># vel_errz = (self.dest[-1][2] - self.dest[-2][2])/dt - speedz</span>
+
+            <span class="k">if</span> <span class="n">sim_type</span> <span class="o">==</span> <span class="s2">&quot;ZO&quot;</span><span class="p">:</span>
+                <span class="c1"># zero order model with velocity/acceleration saturation. uav will fly in direction defined by the distance error vector</span>
+
+                <span class="c1"># saturation</span>
+                <span class="n">desired_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;err_mag&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="n">sim_freq</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">desired_acc</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span><span class="p">:</span>
+                    <span class="n">desired_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span>
+                <span class="c1"># self.sim[&#39;xyzdd&#39;].append(desired_acc)</span>
+                <span class="n">desired_vel</span> <span class="o">=</span> <span class="n">desired_acc</span><span class="o">*</span><span class="n">sim_freq</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;xyzd&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">desired_vel</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span><span class="p">:</span>
+                    <span class="n">desired_vel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;xyzd&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">desired_vel</span>
+                <span class="c1"># self.sim[&#39;xyzd&#39;].append(desired_vel)</span>
+
+                <span class="c1"># calc new position</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;xd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">desired_vel</span> <span class="o">*</span> <span class="n">error_direction</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;xd&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1</span><span class="o">/</span><span class="n">sim_freq</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;yd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">desired_vel</span> <span class="o">*</span> <span class="n">error_direction</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;yd&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1</span><span class="o">/</span><span class="n">sim_freq</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;zd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">desired_vel</span> <span class="o">*</span> <span class="n">error_direction</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;zd&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1</span><span class="o">/</span><span class="n">sim_freq</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+                <span class="c1"># self.sim[&#39;xd&#39;].append(desired_vel * error_direction[0])</span>
+                <span class="c1"># self.sim[&#39;x&#39;].append(self.sim[&#39;xd&#39;][-1] * 1/sim_freq + self.sim[&#39;x&#39;][-1])</span>
+                <span class="c1"># self.sim[&#39;yd&#39;].append(desired_vel * error_direction[1])</span>
+                <span class="c1"># self.sim[&#39;y&#39;].append(self.sim[&#39;yd&#39;][-1] * 1/sim_freq + self.sim[&#39;y&#39;][-1])</span>
+                <span class="c1"># self.sim[&#39;zd&#39;].append(desired_vel * error_direction[2])</span>
+                <span class="c1"># self.sim[&#39;z&#39;].append(self.sim[&#39;zd&#39;][-1] * 1/sim_freq + self.sim[&#39;z&#39;][-1])</span>
+
+
+            <span class="k">elif</span> <span class="n">sim_type</span> <span class="o">==</span> <span class="s2">&quot;FO&quot;</span><span class="p">:</span>
+                <span class="c1">## Use simple position based first order model with proportional control for uav. No saturation on velocity or acceleration</span>
+                <span class="n">K</span><span class="o">=</span><span class="mf">1.5</span>
+                <span class="n">tau</span> <span class="o">=</span> <span class="mi">2</span>
+                
+                <span class="n">newPosX</span> <span class="o">=</span> <span class="n">K</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">dt</span><span class="o">/</span><span class="n">tau</span><span class="p">))</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errx</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">newPosY</span> <span class="o">=</span> <span class="n">K</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">dt</span><span class="o">/</span><span class="n">tau</span><span class="p">))</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_erry</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">newPosZ</span> <span class="o">=</span> <span class="n">K</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">dt</span><span class="o">/</span><span class="n">tau</span><span class="p">))</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errz</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+
+
+            <span class="k">elif</span> <span class="n">sim_type</span> <span class="o">==</span> <span class="s2">&quot;PID&quot;</span><span class="p">:</span>
+                <span class="c1">## calculate PID controller output (saturation causes integration to turn off to prevent windup)</span>
+                <span class="n">integ_len</span> <span class="o">=</span> <span class="mi">300</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagx</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">desired_vel_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_PID</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errx</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">dt</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">desired_vel_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_PID</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errx</span><span class="p">,</span><span class="n">integ_len</span><span class="p">,</span><span class="n">dt</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagy</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">desired_vel_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_PID</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_erry</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">dt</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">desired_vel_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_PID</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_erry</span><span class="p">,</span><span class="n">integ_len</span><span class="p">,</span><span class="n">dt</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagz</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">desired_vel_z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_PID</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errz</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">dt</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">desired_vel_z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_PID</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errz</span><span class="p">,</span><span class="n">integ_len</span><span class="p">,</span><span class="n">dt</span><span class="p">)</span>
+
+                <span class="c1"># desired_vel_x = self._PID(self._dist_errx,self.sat_idx_x,dt)</span>
+                <span class="c1"># desired_vel_y = self._PID(self._dist_erry,self.sat_idx_y,dt)</span>
+                <span class="c1"># desired_vel_z = self._PID(self._dist_errz,self.sat_idx_z,dt)</span>
+
+                <span class="c1">### Impose saturation on state variables</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagx</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagy</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagz</span> <span class="o">=</span> <span class="mi">0</span>
+
+                <span class="c1"># simplified second order model</span>
+                <span class="c1"># this is not correct, max acceleration is for resulting (x,y,z) vector e.g. sqrt(x^2+y^2+z^2)</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">((</span><span class="n">desired_vel_x</span><span class="o">-</span><span class="n">speedx</span><span class="p">)</span><span class="o">/</span><span class="n">dt</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span><span class="p">:</span>
+                    <span class="n">desired_vel_x</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">desired_vel_x</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span> <span class="o">*</span> <span class="n">dt</span><span class="p">)</span> <span class="o">+</span> <span class="n">speedx</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagx</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_idx_x</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errx</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">((</span><span class="n">desired_vel_y</span><span class="o">-</span><span class="n">speedy</span><span class="p">)</span><span class="o">/</span><span class="n">dt</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span><span class="p">:</span>
+                    <span class="n">desired_vel_y</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">desired_vel_y</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span> <span class="o">*</span> <span class="n">dt</span><span class="p">)</span> <span class="o">+</span> <span class="n">speedy</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagy</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_idx_y</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_erry</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">((</span><span class="n">desired_vel_z</span><span class="o">-</span><span class="n">speedz</span><span class="p">)</span><span class="o">/</span><span class="n">dt</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span><span class="p">:</span>
+                    <span class="n">desired_vel_z</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">desired_vel_z</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_acc</span> <span class="o">*</span> <span class="n">dt</span><span class="p">)</span> <span class="o">+</span> <span class="n">speedz</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagz</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_idx_z</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errz</span><span class="p">)</span>
+
+                <span class="c1"># this is not correct, max speed is for resulting (x,y) vector e.g. sqrt(x^2+y^2)</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">desired_vel_x</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span><span class="p">:</span>
+                    <span class="n">desired_vel_x</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">desired_vel_x</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagx</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_idx_x</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errx</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">desired_vel_y</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span><span class="p">:</span>
+                    <span class="n">desired_vel_y</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">desired_vel_y</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagy</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_idx_y</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_erry</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">desired_vel_z</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_ascent</span><span class="p">:</span>
+                    <span class="n">desired_vel_z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_ascent</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagz</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_idx_z</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errz</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">desired_vel_z</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">max_descent</span><span class="p">:</span>
+                    <span class="n">desired_vel_z</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">max_descent</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_flagz</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sat_idx_z</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dist_errz</span><span class="p">)</span>
+
+                <span class="n">newPosX</span> <span class="o">=</span> <span class="n">desired_vel_x</span> <span class="o">*</span> <span class="n">dt</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">newPosY</span> <span class="o">=</span> <span class="n">desired_vel_y</span> <span class="o">*</span> <span class="n">dt</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">newPosZ</span> <span class="o">=</span> <span class="n">desired_vel_z</span> <span class="o">*</span> <span class="n">dt</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TIME</span><span class="p">)</span>
+
+
+
+    <span class="k">def</span> <span class="nf">_integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">err_list</span><span class="p">,</span><span class="n">integ_len</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">err_list</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">integ_len</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">err_list</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">result</span> <span class="o">+</span> <span class="n">val</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">err_list</span><span class="p">[</span><span class="o">-</span><span class="n">integ_len</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">result</span> <span class="o">+</span> <span class="n">val</span>
+
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">_PID</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">err_list</span><span class="p">,</span><span class="n">integ_len</span><span class="p">,</span><span class="n">dt</span><span class="p">):</span>
+        <span class="c1">## PID controller gain values</span>
+        <span class="n">Kp</span> <span class="o">=</span> <span class="o">.</span><span class="mi">11</span>
+        <span class="n">Ki</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">Kd</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">Kp</span><span class="o">*</span><span class="n">err_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">Ki</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_integrate</span><span class="p">(</span><span class="n">err_list</span><span class="p">,</span><span class="n">integ_len</span><span class="p">))</span> <span class="o">+</span> <span class="n">Kd</span><span class="o">*</span><span class="p">(</span><span class="n">err_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">err_list</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="n">dt</span>
+
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="c1"># def _PID(self,err_list,integ_idx,dt):</span>
+    <span class="c1">#     ## PID controller gain values</span>
+    <span class="c1">#     Kp = .115</span>
+    <span class="c1">#     Ki = .8</span>
+    <span class="c1">#     Kd = 0</span>
+
+    <span class="c1">#     result = Kp*err_list[-1] + Ki*(self._integrate(err_list,integ_idx)) + Kd*(err_list[-1]-err_list[-2])/dt</span>
+
+    <span class="c1">#     return result</span>
+
+    <span class="c1"># def _integrate(self,err_list,integ_idx):</span>
+    <span class="c1">#     result = 0</span>
+
+    <span class="c1">#     for val in err_list[integ_idx:-1]:</span>
+    <span class="c1">#         result = result + val</span>
+
+    <span class="c1">#     return result</span>
+
+    <span class="k">def</span> <span class="nf">_dist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loc1</span><span class="p">,</span> <span class="n">loc2</span><span class="p">):</span>
+        <span class="c1"># Calculate Euclidian Distance</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="o">|</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Invalid location 1&quot;</span><span class="p">)</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">loc1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="o">|</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Invalid location 2&quot;</span><span class="p">)</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">loc2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">dist</span> <span class="o">=</span> <span class="p">(</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span><span class="o">**</span><span class="mf">0.5</span>
+        <span class="k">return</span> <span class="n">dist</span>
+
+    <span class="k">def</span> <span class="nf">_add3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">model3D</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">model</span> <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">Model</span><span class="o">.</span><span class="n">all_models</span> <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">agent</span> <span class="o">==</span> <span class="kc">None</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">model</span><span class="p">:</span>
+                <span class="n">model</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model3D</span> <span class="o">=</span> <span class="n">model</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model3D</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;No models currently available to assign to UAV #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Model already assigned to UAV #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_remove3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model3D</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model3D</span><span class="o">.</span><span class="n">unassign</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model3D</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Model not assigned to UAV #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+    
+    <span class="k">def</span> <span class="nf">_addCamera</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">:</span>
+            <span class="n">cam</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">camera</span> <span class="k">for</span> <span class="n">camera</span> <span class="ow">in</span> <span class="n">Camera</span><span class="o">.</span><span class="n">all_cameras</span> <span class="k">if</span> <span class="n">camera</span><span class="o">.</span><span class="n">agent</span> <span class="o">==</span> <span class="kc">None</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cam</span><span class="p">:</span>
+                <span class="n">cam</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">camera</span> <span class="o">=</span> <span class="n">cam</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">camera</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;No cameras currently available to assign to UAV #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_removeCamera</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">unassign</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">camera</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="k">class</span> <span class="nc">Model</span><span class="p">:</span>
+    <span class="n">all_models</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">active_models</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">,</span> <span class="n">model_scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="mi">100</span><span class="p">],</span> <span class="n">yaw_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Net</span><span class="o">.</span><span class="n">Static3DModels</span><span class="o">.</span><span class="n">AddStatic3DModel</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;Point(0, 0, 0)&#39;</span><span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CoordX&#39;</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CoordY&#39;</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CoordZOffset&#39;</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;Scale&#39;</span><span class="p">,</span> <span class="n">model_scale</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_rate</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">yaw_offset</span> <span class="o">=</span> <span class="n">yaw_offset</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_models</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">max_id</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">model</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_models</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">max_id</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">Model</span><span class="o">.</span><span class="n">all_models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">agent</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="n">agent</span>
+            <span class="n">Model</span><span class="o">.</span><span class="n">active_models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Model already assigned to agent with ID #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">unassign</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">Model</span><span class="o">.</span><span class="n">active_models</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Model not assigned to agent with ID #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update_rate</span><span class="p">):</span>
+        <span class="c1"># update_rate = 1 means the model will update every time step. update_rate= 2 will update every two time steps</span>
+        <span class="k">if</span> <span class="n">update_rate</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_rate</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_rate</span> <span class="o">=</span> <span class="n">update_rate</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">update_rate</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">point</span> <span class="o">=</span> <span class="s2">&quot;Point(&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;, &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;, &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">z</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CoordWktPoint3D&#39;</span><span class="p">,</span> <span class="n">point</span><span class="p">)</span>
+                <span class="c1"># self.model.SetAttValue(&#39;CoordX&#39;,self.agent.x[-1])</span>
+                <span class="c1"># self.model.SetAttValue(&#39;CoordY&#39;,self.agent.y[-1])</span>
+                <span class="c1"># self.model.SetAttValue(&#39;CoordZOffset&#39;,self.agent.z[-1])</span>
+
+                <span class="c1"># self.model.SetAttValue(&#39;PitchAngle&#39;, )</span>
+                <span class="c1"># self.model.SetAttValue(&#39;RollAngle&#39;, )</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;YawAngle&#39;</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">heading</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">yaw_offset</span><span class="p">)</span><span class="o">%</span><span class="mi">360</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Model not assigned to agent with ID #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+
+
+<span class="k">class</span> <span class="nc">Camera</span><span class="p">:</span>
+    <span class="n">all_cameras</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">active_cameras</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_cameras</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># may need to delete all existing cameras and storyboards</span>
+        <span class="n">camera_default</span> <span class="o">=</span> <span class="n">CAMERA_DEFAULT</span>
+        <span class="k">if</span> <span class="n">parameters</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+                <span class="n">camera_default</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="n">param</span><span class="p">]</span>
+
+        <span class="n">camera</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Net</span><span class="o">.</span><span class="n">CameraPositions</span><span class="o">.</span><span class="n">AddCameraPosition</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Point(0, 0, 0)&#39;</span><span class="p">)</span> 
+        <span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CoordX&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;Pos&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CoordY&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;Pos&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CoordZ&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;Pos&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;FOV&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;FOV&#39;</span><span class="p">])</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;PitchAngle&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;PitchAngle&#39;</span><span class="p">])</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;RollAngle&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;RollAngle&#39;</span><span class="p">])</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;YawAngle&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;YawAngle&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera</span> <span class="o">=</span> <span class="n">camera</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_rate</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="c1"># define a unique id</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_cameras</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">max_id</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">camera</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">camera</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_cameras</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">max_id</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">Camera</span><span class="o">.</span><span class="n">all_cameras</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="n">storyboard</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Net</span><span class="o">.</span><span class="n">Storyboards</span><span class="o">.</span><span class="n">AddStoryboard</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">storyboard</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;Filename&#39;</span><span class="p">,</span> <span class="n">RESULTS_DIR</span><span class="o">+</span><span class="s2">&quot;Camera &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;.avi&quot;</span><span class="p">)</span>
+        <span class="n">storyboard</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;RecAVI&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;RecAVI&#39;</span><span class="p">])</span> <span class="c1"># create AVI file</span>
+        <span class="n">storyboard</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;ShowPrev&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;ShowPrev&#39;</span><span class="p">])</span> <span class="c1"># show preview of camera during sim</span>
+        <span class="n">storyboard</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;Resolution&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="c1"># specify user defined resolution. Must do this to specify x,y res</span>
+        <span class="n">storyboard</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;ResX&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;ResX&#39;</span><span class="p">])</span>
+        <span class="n">storyboard</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;ResY&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;ResY&#39;</span><span class="p">])</span>
+        <span class="n">storyboard</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;Framerate&#39;</span><span class="p">,</span> <span class="n">camera_default</span><span class="p">[</span><span class="s1">&#39;Framerate&#39;</span><span class="p">])</span>
+
+        <span class="n">keyframe</span> <span class="o">=</span> <span class="n">storyboard</span><span class="o">.</span><span class="n">Keyframes</span><span class="o">.</span><span class="n">AddKeyframe</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">keyframe</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CamPos&#39;</span><span class="p">,</span> <span class="n">camera</span><span class="p">)</span>
+        <span class="n">keyframe</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;StartTime&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="c1"># StartTime == 0 means that recording must be manually started from presentation tab</span>
+        <span class="n">keyframe</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;DwellTime&#39;</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">agent</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="n">agent</span>
+            <span class="n">Camera</span><span class="o">.</span><span class="n">active_cameras</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Camera already assigned to agent with ID #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">unassign</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">Camera</span><span class="o">.</span><span class="n">active_cameras</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Camera not assigned to agent with ID #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update_rate</span><span class="p">):</span>
+        <span class="c1"># update_rate = 1 means the model will update every time step. update_rate= 2 will update every two time steps</span>
+        <span class="k">if</span> <span class="n">update_rate</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_rate</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_rate</span> <span class="o">=</span> <span class="n">update_rate</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">update_rate</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">point</span> <span class="o">=</span> <span class="s2">&quot;Point(&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;, &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;, &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">z</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;CoordWktPoint3D&#39;</span><span class="p">,</span> <span class="n">point</span><span class="p">)</span>
+                <span class="c1"># self.camera.SetAttValue(&#39;CoordX&#39;,self.agent.x[-1])</span>
+                <span class="c1"># self.camera.SetAttValue(&#39;CoordY&#39;,self.agent.y[-1])</span>
+                <span class="c1"># self.camera.SetAttValue(&#39;CoordZ&#39;,self.agent.z[-1])</span>
+
+                <span class="c1"># self.model.SetAttValue(&#39;PitchAngle&#39;, )</span>
+                <span class="c1"># self.model.SetAttValue(&#39;RollAngle&#39;, )</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">SetAttValue</span><span class="p">(</span><span class="s1">&#39;YawAngle&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">heading</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Camera not assigned to agent with ID #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">PyPTV</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Garrett Dowd.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,447 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ptv_comm.network &#8212; PyPTV 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for ptv_comm.network</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Garrett Dowd&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright (C) 2019 Garrett Dowd&quot;</span>
+<span class="n">__license__</span> <span class="o">=</span> <span class="s2">&quot;MPL-2.0&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.0.1&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;Implements a simple wired/wireless network for message passing.</span>
+
+<span class="sd">This module provides the underlying networking that objects can use to pass messages.</span>
+<span class="sd">Usually, the methods in this module will not be used directly, instead wrapper methods will be</span>
+<span class="sd">    defined in the object classes that use this module.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">Message</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;Message&#39;</span><span class="p">,</span> <span class="s1">&#39;timestamp, sender_id, sender_loc, recipient_id, recipient_loc, msg_type, payload, delay, dropped&#39;</span><span class="p">)</span>
+<span class="n">Event</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="s1">&#39;time, priority, action, argument&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="setup"><a class="viewcode-back" href="../../index.html#ptv_comm.network.setup">[docs]</a><span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="n">_Vissim</span><span class="p">,</span> <span class="n">_RESULTS_DIR</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Call before beginning of simulation to initialize module.</span>
+
+<span class="sd">    Gives the module access to the Vissim COM API and </span>
+<span class="sd">    defines a directory to save results to.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        _Vissim:(COM) the Vissim COM object associated with your simulation, commonly &quot;Vissim&quot;</span>
+<span class="sd">        _RESULTS_DIR:(string) an absolute directory</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">Vissim</span>       <span class="c1">#follows naming convention of standard Vissim COM interface</span>
+    <span class="k">global</span> <span class="n">RESULTS_DIR</span>
+    <span class="k">global</span> <span class="n">SIM_RES</span>
+
+    <span class="n">Vissim</span> <span class="o">=</span> <span class="n">_Vissim</span>
+    <span class="n">RESULTS_DIR</span> <span class="o">=</span> <span class="n">_RESULTS_DIR</span>
+    <span class="n">SIM_RES</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;SimRes&#39;</span><span class="p">)</span></div>
+    
+
+<div class="viewcode-block" id="update"><a class="viewcode-back" href="../../index.html#ptv_comm.network.update">[docs]</a><span class="k">def</span> <span class="nf">update</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Call every time step to update messages.</span>
+
+<span class="sd">    This makes sure that every network is updated and messages are sent.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">net</span> <span class="ow">in</span> <span class="n">Net</span><span class="o">.</span><span class="n">all_nets</span><span class="p">:</span>
+        <span class="n">net</span><span class="o">.</span><span class="n">update</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="Net"><a class="viewcode-back" href="../../index.html#ptv_comm.network.Net">[docs]</a><span class="k">class</span> <span class="nc">Net</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Generic Network class for message passing.</span>
+
+<span class="sd">    This class enables messages to be passed between objects with simplified</span>
+<span class="sd">    wired/wireless networking properties such as stochastic distance limits and delay.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        type:(string) indicates a class of communicatin technology. Labelling purposes only</span>
+<span class="sd">        agents:(list[list[object]]) a list of lists containing objects reprsenting nodes in the network</span>
+<span class="sd">        NOT IMPLEMENTED - reliability_pct:(float) a percentage used to estimte the reliability of message delivery</span>
+<span class="sd">        delay_gauss_mean:(float) gaussian mean of delay</span>
+<span class="sd">        delay_guass_stddev:(float) guassian standard deviation of delay</span>
+<span class="sd">        s:(Sched object) the scheduler object to use for scheduling messages</span>
+<span class="sd">        all_messages:(list) a list of all created messages</span>
+<span class="sd">        all_nets:(list) list of all instantiated Net objects</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">all_nets</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># list of all instantiated Net objects</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">other</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tech_type</span><span class="p">,</span> <span class="n">list_of_lists_of_agents</span><span class="p">,</span> <span class="n">reliability_pct</span> <span class="o">=</span> <span class="mi">1</span> <span class="p">,</span> <span class="n">delay_gauss_mean</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">delay_guass_stddev</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Call before beginning of simulation to initialize module.</span>
+
+<span class="sd">        Gives the module access to the Vissim COM API and </span>
+<span class="sd">        defines a directory to save results to.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            type:(string) indicates a class of communicatin technology. Labelling purposes only</span>
+<span class="sd">            agents:(list[list[object]]) a list of lists containing objects* reprsenting nodes in the network</span>
+<span class="sd">            NOT IMPLEMENTED - reliability_pct:(float) a percentage used to estimte the reliability of message delivery</span>
+<span class="sd">            delay_gauss_mean:(float) gaussian mean of delay</span>
+<span class="sd">            delay_guass_stddev:(float) guassian standard deviation of delay</span>
+
+<span class="sd">        *object must have a receive method - agent.receiveMsg(sender_id, msg_type, payload)</span>
+<span class="sd">        *object must have a unique &quot;id&quot; attribute - agent.id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># define a unique id</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_nets</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">max_id</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">net</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">net</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_nets</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">max_id</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">tech_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agents</span> <span class="o">=</span> <span class="n">list_of_lists_of_agents</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reliability_pct</span> <span class="o">=</span> <span class="n">reliability_pct</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delay_gauss_mean</span> <span class="o">=</span> <span class="n">delay_gauss_mean</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delay_guass_stddev</span> <span class="o">=</span> <span class="n">delay_guass_stddev</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s</span> <span class="o">=</span> <span class="n">Sched</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_timefunc</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_messages</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_nets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="c1"># add this instance to list of all instances for iteration</span>
+
+
+<div class="viewcode-block" id="Net.update"><a class="viewcode-back" href="../../index.html#ptv_comm.network.Net.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;No need to call this function directly.</span>
+
+<span class="sd">        This udpdates the assocaited scheduler which sends delayed messages.</span>
+<span class="sd">        This function is called by the module level update function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s</span><span class="o">.</span><span class="n">update</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="Net.broadcast"><a class="viewcode-back" href="../../index.html#ptv_comm.network.Net.broadcast">[docs]</a>    <span class="k">def</span> <span class="nf">broadcast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">broadcast_location</span><span class="p">,</span> <span class="n">comm_range</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="n">recipient_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">sender_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Sends a message.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            broadcast_location:(list) [X,Y] or [X,Y,Z] must be given as it determines which agents will be in range to receive the message</span>
+<span class="sd">            msg_type:(*) externally defined message types that determine how an agent shoud interpret the message. This could eventually be combined with the payload</span>
+<span class="sd">            payload:(*) parsing of payload is left to receiving agents</span>
+<span class="sd">            recipient_id:(integer) -1 will broadcast the message to all agents within range</span>
+<span class="sd">            sender_id: (integer) -1 means that the message is being sent anonymously</span>
+
+<span class="sd">        Recipient_id must be unique among all agents - this is a reason to implement IP networking</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">recipient_id</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span> <span class="c1"># broadcast to all agents NOT including self (unless sent anonymously)</span>
+            <span class="k">for</span> <span class="n">agent_list</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">agents</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">agent_list</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">agent</span><span class="o">.</span><span class="n">id</span> <span class="o">!=</span> <span class="n">sender_id</span><span class="p">:</span>
+                        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_createMsg</span><span class="p">(</span><span class="n">sender_id</span><span class="p">,</span> <span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="n">broadcast_location</span><span class="p">,</span> <span class="n">agent</span><span class="o">.</span><span class="n">position</span><span class="p">(),</span> <span class="n">comm_range</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_scheduleMsg</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># broadcast only to desired recipient_id</span>
+            <span class="k">for</span> <span class="n">agent_list</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">agents</span><span class="p">:</span>
+                <span class="n">agent</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">agent</span> <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">agent_list</span> <span class="k">if</span> <span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="o">==</span><span class="n">recipient_id</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">agent</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_createMsg</span><span class="p">(</span><span class="n">sender_id</span><span class="p">,</span> <span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="n">broadcast_location</span><span class="p">,</span> <span class="n">agent</span><span class="o">.</span><span class="n">position</span><span class="p">(),</span> <span class="n">comm_range</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_scheduleMsg</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;When broadcasting a message, given recipient_id #&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">recipient_id</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; does not exist&quot;</span><span class="p">)</span></div>
+                    <span class="c1"># Vissim.Simulation.Stop()</span>
+
+    <span class="k">def</span> <span class="nf">_createMsg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">recipient_id</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="n">sender_loc</span><span class="p">,</span> <span class="n">recipient_loc</span><span class="p">,</span> <span class="n">comm_range</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sub- function to create a message and calculate metadata.</span>
+
+<span class="sd">        This function creates a Message with delay and drop metadata</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;SimSec&#39;</span><span class="p">)</span>
+        <span class="n">delay</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delay</span><span class="p">()</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dist</span><span class="p">(</span><span class="n">sender_loc</span><span class="p">,</span><span class="n">recipient_loc</span><span class="p">)</span>
+        <span class="n">dropped</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">comm_range</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span>  <span class="n">Message</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">sender_loc</span><span class="p">,</span> <span class="n">recipient_id</span><span class="p">,</span> <span class="n">recipient_loc</span><span class="p">,</span> <span class="n">msg_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">dropped</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">msg</span>
+
+    <span class="k">def</span> <span class="nf">_scheduleMsg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Schedule the message for future.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            message:(Message)</span>
+
+<span class="sd">        If the delay is less than the simulation time step resolution then it sends it immediately.</span>
+<span class="sd">        Otherwise it schedules the message to be sent in the future.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">dropped</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">delay</span> <span class="o">&lt;</span> <span class="n">SIM_RES</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_sendMsg</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">s</span><span class="o">.</span><span class="n">enter</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">delay</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_sendMsg</span><span class="p">,(</span><span class="n">message</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_sendMsg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This delivers a message to a recipient.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            message:(Message)</span>
+
+<span class="sd">        Find the correct agent and call that agents receive message function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">agent_list</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">agents</span><span class="p">:</span>
+            <span class="n">agent</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">agent</span> <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">agent_list</span> <span class="k">if</span> <span class="n">agent</span><span class="o">.</span><span class="n">id</span><span class="o">==</span><span class="n">message</span><span class="o">.</span><span class="n">recipient_id</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">agent</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">agent</span><span class="o">.</span><span class="n">receiveMsg</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">sender_id</span><span class="p">,</span> <span class="n">message</span><span class="o">.</span><span class="n">msg_type</span><span class="p">,</span> <span class="n">message</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+
+    
+    <span class="k">def</span> <span class="nf">_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        message delays can be used, but anything shorter than the sim time step</span>
+<span class="sd">        is trivial and can be ignored. This should be the case given a normal simulation time step</span>
+<span class="sd">        and a max communication distance of 1-2km</span>
+
+<span class="sd">        # maybe should be based on congestion?</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">gauss</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delay_gauss_mean</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay_guass_stddev</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_dist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loc1</span><span class="p">,</span> <span class="n">loc2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculate euclidian distance.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            loc1:(list) [X,Y] or [X,Y,Z]  if only [X,Y] then Z is assumed to be 0</span>
+<span class="sd">            loc2:(list) [X,Y] or [X,Y,Z]  if only [X,Y] then Z is assumed to be 0</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Calculate Euclidian Distance</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="o">|</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Invalid location 1&quot;</span><span class="p">)</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">loc1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="o">|</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Invalid location 2&quot;</span><span class="p">)</span>
+            <span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">Stop</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">loc2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">dist</span> <span class="o">=</span> <span class="p">(</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">loc1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">loc2</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span><span class="o">**</span><span class="mf">0.5</span>
+        <span class="k">return</span> <span class="n">dist</span>
+
+    <span class="c1"># this needs to be updated with an equation that can better model the chance of dropping messages based on distance</span>
+    <span class="k">def</span> <span class="nf">_drop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">comm_range</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determine if message will be dropped (delivery failure).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dist:(float) the distance betwwen agents</span>
+<span class="sd">            comm_range:(float) rated distance at which the transmitter can send a message</span>
+
+<span class="sd">        Stochastic drop logic has not yet been implemented        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">normalized_diff</span> <span class="o">=</span> <span class="p">(</span><span class="n">comm_range</span> <span class="o">-</span> <span class="n">dist</span><span class="p">)</span><span class="o">/</span><span class="n">comm_range</span>
+        
+        <span class="k">if</span> <span class="n">normalized_diff</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span> <span class="c1"># message is not dropped</span>
+        <span class="k">elif</span> <span class="n">normalized_diff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span> <span class="c1"># message is dropped</span>
+
+    <span class="k">def</span> <span class="nf">_timefunc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns Vissim SimSec.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">Vissim</span><span class="o">.</span><span class="n">Simulation</span><span class="o">.</span><span class="n">AttValue</span><span class="p">(</span><span class="s1">&#39;SimSec&#39;</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="saveResults"><a class="viewcode-back" href="../../index.html#ptv_comm.network.saveResults">[docs]</a><span class="k">def</span> <span class="nf">saveResults</span><span class="p">(</span><span class="n">filepath</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Save all messages to a csv file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filepath:(string) an absolute filepath. </span>
+
+<span class="sd">    If a file path is not given then the default will be used</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># make sure that the necessary folder structure exists</span>
+    <span class="k">if</span> <span class="n">filepath</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="n">RESULTS_DIR</span>
+    <span class="c1"># make sure that the necessary folder structure exists</span>
+    <span class="n">file_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_dir</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Creating directory &quot;</span><span class="o">+</span><span class="n">file_dir</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;saving network results to &quot;</span><span class="o">+</span><span class="n">filepath</span><span class="p">)</span>
+    <span class="n">column_comms</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;timestamp&#39;</span><span class="p">,</span> <span class="s1">&#39;sender_id&#39;</span><span class="p">,</span> <span class="s1">&#39;sender_loc&#39;</span><span class="p">,</span> <span class="s1">&#39;recipient_id&#39;</span><span class="p">,</span> <span class="s1">&#39;recipient_loc&#39;</span><span class="p">,</span> <span class="s1">&#39;msg_type&#39;</span><span class="p">,</span> <span class="s1">&#39;payload&#39;</span><span class="p">,</span> <span class="s1">&#39;delay&#39;</span><span class="p">,</span> <span class="s1">&#39;dropped&#39;</span><span class="p">]</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">net</span> <span class="ow">in</span> <span class="n">Net</span><span class="o">.</span><span class="n">all_nets</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">net</span><span class="o">.</span><span class="n">all_messages</span><span class="p">:</span>
+            <span class="n">df_d</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;timestamp&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span>
+                <span class="s1">&#39;sender_id&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">sender_id</span><span class="p">,</span>
+                <span class="s1">&#39;sender_loc&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">sender_loc</span><span class="p">,</span>
+                <span class="s1">&#39;recipient_id&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">recipient_id</span><span class="p">,</span>
+                <span class="s1">&#39;recipient_loc&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">recipient_loc</span><span class="p">,</span>
+                <span class="s1">&#39;msg_type&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">msg_type</span><span class="p">,</span>
+                <span class="s1">&#39;payload&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">payload</span><span class="p">,</span>
+                <span class="s1">&#39;delay&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">delay</span><span class="p">,</span>
+                <span class="s1">&#39;dropped&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">dropped</span>
+            <span class="p">}</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_d</span><span class="p">)</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">column_comms</span><span class="p">)</span>  <span class="c1"># ensure columns are in correct order</span>
+    <span class="c1"># df = df.iloc[::-1] # reverse order of rows</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="id"><a class="viewcode-back" href="../../index.html#ptv_comm.network.id">[docs]</a><span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the Net object with the given id number&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">next</span><span class="p">((</span><span class="n">net</span> <span class="k">for</span> <span class="n">net</span> <span class="ow">in</span> <span class="n">Net</span><span class="o">.</span><span class="n">all_nets</span> <span class="k">if</span> <span class="n">net</span><span class="o">.</span><span class="n">id</span><span class="o">==</span><span class="n">num</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+
+
+<div class="viewcode-block" id="Sched"><a class="viewcode-back" href="../../index.html#ptv_comm.network.Sched">[docs]</a><span class="k">class</span> <span class="nc">Sched</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot; Generic python module &quot;Sched&quot; will not work in this context</span>
+<span class="sd">    Modify library slightly to work in this context</span>
+<span class="sd">    Main differences:</span>
+<span class="sd">    no delayfunc needed</span>
+<span class="sd">    no run() method. Replaced with update() method that is called every loop</span>
+<span class="sd">    &quot;priority&quot; not used because there is no real time context where events can be delayed past the intended delay time</span>
+<span class="sd">    heapq not used. regular sorted list used instead</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">timefunc</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">timefunc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># sorted from next to last</span>
+
+<div class="viewcode-block" id="Sched.enterabs"><a class="viewcode-back" href="../../index.html#ptv_comm.network.Sched.enterabs">[docs]</a>    <span class="k">def</span> <span class="nf">enterabs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">priority</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">argument</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Enter a new event in the queue at an absolute time.</span>
+<span class="sd">        Returns an ID for the event which can be used to remove it,</span>
+<span class="sd">        if necessary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">event</span> <span class="o">=</span> <span class="n">Event</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">priority</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="c1"># sort by time</span>
+        <span class="k">return</span> <span class="n">event</span> <span class="c1"># The ID</span></div>
+
+<div class="viewcode-block" id="Sched.enter"><a class="viewcode-back" href="../../index.html#ptv_comm.network.Sched.enter">[docs]</a>    <span class="k">def</span> <span class="nf">enter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">priority</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">argument</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A variant that specifies the time as a relative time.</span>
+<span class="sd">        This is actually the more commonly used interface.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="n">delay</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">enterabs</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">priority</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Sched.cancel"><a class="viewcode-back" href="../../index.html#ptv_comm.network.Sched.cancel">[docs]</a>    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Remove an event from the queue.</span>
+<span class="sd">        This must be presented the ID as returned by enter().</span>
+<span class="sd">        If the event is not in the queue, this raises ValueError.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">event</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Sched.empty"><a class="viewcode-back" href="../../index.html#ptv_comm.network.Sched.empty">[docs]</a>    <span class="k">def</span> <span class="nf">empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check whether the queue is empty.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue</span></div>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue</span><span class="p">:</span>
+            <span class="n">time</span><span class="p">,</span> <span class="n">priority</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">argument</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">now</span> <span class="o">&lt;=</span> <span class="n">time</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_queue</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">action</span><span class="p">(</span><span class="o">*</span><span class="n">argument</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">PyPTV</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Garrett Dowd.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

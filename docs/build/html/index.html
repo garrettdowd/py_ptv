@@ -1,0 +1,355 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Welcome to PyPTV’s documentation! &#8212; PyPTV 0.0.2 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="welcome-to-pyptv-s-documentation">
+<h1>Welcome to PyPTV’s documentation!<a class="headerlink" href="#welcome-to-pyptv-s-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+<div class="section" id="module-ptv_veh.uav">
+<span id="pyptv-uav"></span><h2>PyPTV UAV<a class="headerlink" href="#module-ptv_veh.uav" title="Permalink to this headline">¶</a></h2>
+<dl class="data">
+<dt id="ptv_veh.uav.CAMERA_DEFAULT">
+<code class="descclassname">ptv_veh.uav.</code><code class="descname">CAMERA_DEFAULT</code><em class="property"> = {'FOV': 20, 'Framerate': 20, 'PitchAngle': 90, 'Pos': [0, 0, -100], 'RecAVI': 'true', 'ResX': 720, 'ResY': 480, 'RollAngle': 0, 'ShowPrev': 'true', 'YawAngle': 0}</em><a class="headerlink" href="#ptv_veh.uav.CAMERA_DEFAULT" title="Permalink to this definition">¶</a></dt>
+<dd><p>Intended Use Documentation Here
+3D Models and cameras must be created before the start of simulation so the code had to be structured to accomodate that requirement
+3D Models can really slow down the simulation speed (by half)</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="ptv_veh.uav.Skill">
+<em class="property">class </em><code class="descclassname">ptv_veh.uav.</code><code class="descname">Skill</code><a class="reference internal" href="_modules/ptv_veh/uav.html#Skill"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_veh.uav.Skill" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-ptv_veh.car">
+<span id="pyptv-car"></span><h2>PyPTV Car<a class="headerlink" href="#module-ptv_veh.car" title="Permalink to this headline">¶</a></h2>
+<dl class="data">
+<dt id="ptv_veh.car.CAR_DEFAULT">
+<code class="descclassname">ptv_veh.car.</code><code class="descname">CAR_DEFAULT</code><em class="property"> = {'comms': None, 'desired_speed': 0, 'lane': 1, 'link': 1, 'msg_handler': None, 'skill': 0, 'veh_type': 111}</em><a class="headerlink" href="#ptv_veh.car.CAR_DEFAULT" title="Permalink to this definition">¶</a></dt>
+<dd><p>Intended Use Documentation Here</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="ptv_veh.car.Skill">
+<em class="property">class </em><code class="descclassname">ptv_veh.car.</code><code class="descname">Skill</code><a class="reference internal" href="_modules/ptv_veh/car.html#Skill"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_veh.car.Skill" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-ptv_comm.network">
+<span id="pyptv-network"></span><h2>PyPTV Network<a class="headerlink" href="#module-ptv_comm.network" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="ptv_comm.network.Event">
+<em class="property">class </em><code class="descclassname">ptv_comm.network.</code><code class="descname">Event</code><span class="sig-paren">(</span><em>time</em>, <em>priority</em>, <em>action</em>, <em>argument</em><span class="sig-paren">)</span><a class="headerlink" href="#ptv_comm.network.Event" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="ptv_comm.network.Event.action">
+<code class="descname">action</code><a class="headerlink" href="#ptv_comm.network.Event.action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Event.argument">
+<code class="descname">argument</code><a class="headerlink" href="#ptv_comm.network.Event.argument" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 3</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Event.priority">
+<code class="descname">priority</code><a class="headerlink" href="#ptv_comm.network.Event.priority" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Event.time">
+<code class="descname">time</code><a class="headerlink" href="#ptv_comm.network.Event.time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="ptv_comm.network.Message">
+<em class="property">class </em><code class="descclassname">ptv_comm.network.</code><code class="descname">Message</code><span class="sig-paren">(</span><em>timestamp</em>, <em>sender_id</em>, <em>sender_loc</em>, <em>recipient_id</em>, <em>recipient_loc</em>, <em>msg_type</em>, <em>payload</em>, <em>delay</em>, <em>dropped</em><span class="sig-paren">)</span><a class="headerlink" href="#ptv_comm.network.Message" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="ptv_comm.network.Message.delay">
+<code class="descname">delay</code><a class="headerlink" href="#ptv_comm.network.Message.delay" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 7</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Message.dropped">
+<code class="descname">dropped</code><a class="headerlink" href="#ptv_comm.network.Message.dropped" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 8</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Message.msg_type">
+<code class="descname">msg_type</code><a class="headerlink" href="#ptv_comm.network.Message.msg_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 5</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Message.payload">
+<code class="descname">payload</code><a class="headerlink" href="#ptv_comm.network.Message.payload" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 6</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Message.recipient_id">
+<code class="descname">recipient_id</code><a class="headerlink" href="#ptv_comm.network.Message.recipient_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 3</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Message.recipient_loc">
+<code class="descname">recipient_loc</code><a class="headerlink" href="#ptv_comm.network.Message.recipient_loc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 4</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Message.sender_id">
+<code class="descname">sender_id</code><a class="headerlink" href="#ptv_comm.network.Message.sender_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Message.sender_loc">
+<code class="descname">sender_loc</code><a class="headerlink" href="#ptv_comm.network.Message.sender_loc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ptv_comm.network.Message.timestamp">
+<code class="descname">timestamp</code><a class="headerlink" href="#ptv_comm.network.Message.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="ptv_comm.network.Net">
+<em class="property">class </em><code class="descclassname">ptv_comm.network.</code><code class="descname">Net</code><span class="sig-paren">(</span><em>tech_type</em>, <em>list_of_lists_of_agents</em>, <em>reliability_pct=1</em>, <em>delay_gauss_mean=0</em>, <em>delay_guass_stddev=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#Net"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.Net" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic Network class for message passing.</p>
+<p>This class enables messages to be passed between objects with simplified
+wired/wireless networking properties such as stochastic distance limits and delay.</p>
+<dl class="docutils">
+<dt>Attributes:</dt>
+<dd>type:(string) indicates a class of communicatin technology. Labelling purposes only
+agents:(list[list[object]]) a list of lists containing objects reprsenting nodes in the network
+NOT IMPLEMENTED - reliability_pct:(float) a percentage used to estimte the reliability of message delivery
+delay_gauss_mean:(float) gaussian mean of delay
+delay_guass_stddev:(float) guassian standard deviation of delay
+s:(Sched object) the scheduler object to use for scheduling messages
+all_messages:(list) a list of all created messages
+all_nets:(list) list of all instantiated Net objects</dd>
+</dl>
+<dl class="method">
+<dt id="ptv_comm.network.Net.broadcast">
+<code class="descname">broadcast</code><span class="sig-paren">(</span><em>broadcast_location</em>, <em>comm_range</em>, <em>msg_type</em>, <em>payload</em>, <em>recipient_id=-1</em>, <em>sender_id=-1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#Net.broadcast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.Net.broadcast" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sends a message.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>broadcast_location:(list) [X,Y] or [X,Y,Z] must be given as it determines which agents will be in range to receive the message
+msg_type:(*) externally defined message types that determine how an agent shoud interpret the message. This could eventually be combined with the payload
+payload:(*) parsing of payload is left to receiving agents
+recipient_id:(integer) -1 will broadcast the message to all agents within range
+sender_id: (integer) -1 means that the message is being sent anonymously</dd>
+</dl>
+<p>Recipient_id must be unique among all agents - this is a reason to implement IP networking</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ptv_comm.network.Net.update">
+<code class="descname">update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#Net.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.Net.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>No need to call this function directly.</p>
+<p>This udpdates the assocaited scheduler which sends delayed messages.
+This function is called by the module level update function.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="ptv_comm.network.Sched">
+<em class="property">class </em><code class="descclassname">ptv_comm.network.</code><code class="descname">Sched</code><span class="sig-paren">(</span><em>timefunc</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#Sched"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.Sched" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic python module “Sched” will not work in this context
+Modify library slightly to work in this context
+Main differences:
+no delayfunc needed
+no run() method. Replaced with update() method that is called every loop
+“priority” not used because there is no real time context where events can be delayed past the intended delay time
+heapq not used. regular sorted list used instead</p>
+<dl class="method">
+<dt id="ptv_comm.network.Sched.cancel">
+<code class="descname">cancel</code><span class="sig-paren">(</span><em>event</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#Sched.cancel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.Sched.cancel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove an event from the queue.
+This must be presented the ID as returned by enter().
+If the event is not in the queue, this raises ValueError.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ptv_comm.network.Sched.empty">
+<code class="descname">empty</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#Sched.empty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.Sched.empty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check whether the queue is empty.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ptv_comm.network.Sched.enter">
+<code class="descname">enter</code><span class="sig-paren">(</span><em>delay</em>, <em>priority</em>, <em>action</em>, <em>argument</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#Sched.enter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.Sched.enter" title="Permalink to this definition">¶</a></dt>
+<dd><p>A variant that specifies the time as a relative time.
+This is actually the more commonly used interface.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ptv_comm.network.Sched.enterabs">
+<code class="descname">enterabs</code><span class="sig-paren">(</span><em>time</em>, <em>priority</em>, <em>action</em>, <em>argument</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#Sched.enterabs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.Sched.enterabs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enter a new event in the queue at an absolute time.
+Returns an ID for the event which can be used to remove it,
+if necessary.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="ptv_comm.network.id">
+<code class="descclassname">ptv_comm.network.</code><code class="descname">id</code><span class="sig-paren">(</span><em>num</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the Net object with the given id number</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="ptv_comm.network.saveResults">
+<code class="descclassname">ptv_comm.network.</code><code class="descname">saveResults</code><span class="sig-paren">(</span><em>filepath=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#saveResults"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.saveResults" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save all messages to a csv file.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>filepath:(string) an absolute filepath.</dd>
+</dl>
+<p>If a file path is not given then the default will be used</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="ptv_comm.network.setup">
+<code class="descclassname">ptv_comm.network.</code><code class="descname">setup</code><span class="sig-paren">(</span><em>_Vissim</em>, <em>_RESULTS_DIR</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#setup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.setup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Call before beginning of simulation to initialize module.</p>
+<p>Gives the module access to the Vissim COM API and 
+defines a directory to save results to.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>_Vissim:(COM) the Vissim COM object associated with your simulation, commonly “Vissim”
+_RESULTS_DIR:(string) an absolute directory</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="ptv_comm.network.update">
+<code class="descclassname">ptv_comm.network.</code><code class="descname">update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/ptv_comm/network.html#update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ptv_comm.network.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Call every time step to update messages.</p>
+<p>This makes sure that every network is updated and messages are sent.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">PyPTV</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Garrett Dowd.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

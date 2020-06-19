@@ -51,26 +51,11 @@ Example Simulation
 Message handler
 
 
-# Details
-## car
-**ptv_veh.car**  
-*Documentation on the provided methods needs to be written* 
-### Use
 
-### Parameters
+# Documentation
+Documentation can be found at
 
-### Methods
-
-### Vissim Updates
-
-## uav
-**ptv_veh.uav**  
-*Documentation on the provided methods needs to be written*  
-
-## network
-**ptv_comm.network**  
-*Documentation on the provided methods needs to be written*  
-*Documentation on the requirements of the message handlers needs to be written*  
+Built using Sphinx and hosted using readthedocs. 
 
 
 # To Do
